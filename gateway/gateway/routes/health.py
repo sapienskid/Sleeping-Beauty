@@ -2,41 +2,73 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/health")
-async def health_check(request: Request) -> JSONResponse:
-    """Return health status of the gateway and its dependencies."""
-    config = request.app.state.config
-    llama_chat = request.app.state.llama_chat
+async def health(request: Request) -> JSONResponse:
+    """Check health of all gateway dependencies."""
+    components: dict = {}
+    overall = "ok"
 
-    components: dict = {
-        "gateway": {"status": "ok", "version": "0.1.0"},
-    }
+    # Gateway itself
+    from gateway import __version__
 
-    # Check llama-server (chat)
-    if await llama_chat.health_check():
+    components["gateway"] = {"status": "ok", "version": __version__}
+
+    # llama-server (chat)
+    llama_chat = getattr(request.app.state, "llama_chat", None)
+    if llama_chat is not None:
+        try:
+            ok = await llama_chat.health_check()
+        except Exception as exc:
+            logger.warning("llama_chat health check failed: %s", exc)
+            ok = False
         components["llama_chat"] = {
-            "status": "ok",
-            "url": config.llama_chat.base_url,
+            "status": "ok" if ok else "unavailable",
+            "url": llama_chat.base_url,
+        }
+        if not ok:
+            overall = "degraded"
+    else:
+        components["llama_chat"] = {"status": "not_configured"}
+        overall = "degraded"
+
+    # Chroma
+    chroma = getattr(request.app.state, "chroma", None)
+    if chroma is not None:
+        try:
+            chroma.heartbeat()
+            components["chroma"] = {"status": "ok"}
+        except Exception:
+            components["chroma"] = {"status": "unavailable"}
+            overall = "degraded"
+    else:
+        components["chroma"] = {"status": "not_configured"}
+
+    # Embedding model
+    embedder = getattr(request.app.state, "embedder", None)
+    if embedder is not None:
+        dimension: int | None
+        status = "ok"
+        try:
+            dimension = embedder.dimension
+        except AssertionError:
+            # llama-server backend does not know dimension until first embed call.
+            dimension = None
+            status = "warming_up"
+
+        components["embedder"] = {
+            "status": status,
+            "dimension": dimension,
         }
     else:
-        components["llama_chat"] = {
-            "status": "unavailable",
-            "url": config.llama_chat.base_url,
-        }
+        components["embedder"] = {"status": "not_configured"}
 
-    # Chroma health check (deferred — not wired up yet in phase 1)
-    # TODO: add chroma health check when retrieval is implemented
-
-    all_ok = all(c.get("status") == "ok" for c in components.values())
-    status_code = 200 if all_ok else 503
-
-    return JSONResponse(
-        content={"status": "ok" if all_ok else "degraded", "components": components},
-        status_code=status_code,
-    )
+    return JSONResponse(content={"status": overall, "components": components})
