@@ -1,0 +1,67 @@
+Arch Linux System Administration Guide
+
+Chapter 1: Package Management with pacman
+
+Arch Linux uses pacman as its package manager. The key commands are:
+
+- `pacman -Syu`: Synchronize repositories and upgrade all packages. This is the recommended way to update the system. Always perform a full system upgrade, never partial upgrades.
+- `pacman -S <package>`: Install a specific package from the repositories.
+- `pacman -R <package>`: Remove a package while leaving its dependencies.
+- `pacman -Rs <package>`: Remove a package and its unused dependencies.
+- `pacman -Ss <keyword>`: Search for packages in the repositories.
+- `pacman -Qs <keyword>`: Search for locally installed packages.
+- `pacman -Qi <package>`: Display detailed information about an installed package.
+- `pacman -Qe`: List all explicitly installed packages.
+
+Configuration is stored in /etc/pacman.conf. The mirrorlist is at /etc/pacman.d/mirrorlist.
+
+Chapter 2: AUR (Arch User Repository)
+
+The AUR contains community-maintained build scripts (PKGBUILDs) for software not in the official repos. Popular AUR helpers include:
+
+- yay: Written in Go, supports pacman syntax natively
+- paru: Written in Rust, based on yay with additional features
+
+To install from AUR manually:
+1. Clone the PKGBUILD repository: git clone https://aur.archlinux.org/<package>.git
+2. Review the PKGBUILD file for security
+3. Run makepkg -si to build and install
+
+Chapter 3: systemd Service Management
+
+Arch Linux uses systemd for service management. Key commands:
+
+- `systemctl start <service>`: Start a service immediately
+- `systemctl stop <service>`: Stop a running service
+- `systemctl enable <service>`: Enable a service to start at boot
+- `systemctl disable <service>`: Disable a service from starting at boot
+- `systemctl status <service>`: Show the current status of a service
+- `systemctl restart <service>`: Restart a service
+- `systemctl daemon-reload`: Reload systemd configuration after editing unit files
+
+User services are managed with `systemctl --user` and are stored in ~/.config/systemd/user/.
+
+Chapter 4: Network Configuration
+
+Arch Linux supports multiple network management tools:
+
+1. NetworkManager: Full-featured, suitable for desktops. Use nmcli or nmtui for CLI management.
+2. systemd-networkd: Lightweight, suitable for servers and containers. Configuration files go in /etc/systemd/network/.
+3. iwd: Modern wireless daemon, can replace wpa_supplicant.
+
+DNS resolution is handled by systemd-resolved. Configuration is at /etc/systemd/resolved.conf.
+
+Chapter 5: Boot Process and GRUB
+
+Arch Linux commonly uses GRUB or systemd-boot as bootloaders.
+
+GRUB configuration:
+- Main config: /etc/default/grub
+- Regenerate after changes: grub-mkconfig -o /boot/grub/grub.cfg
+
+systemd-boot configuration:
+- Install with: bootctl install
+- Config at: /boot/loader/loader.conf
+- Entries at: /boot/loader/entries/
+
+The kernel and initramfs are located in /boot. The mkinitcpio tool generates the initial ramdisk. Its configuration is at /etc/mkinitcpio.conf.

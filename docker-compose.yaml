@@ -22,6 +22,7 @@ services:
     volumes:
       - ./gateway-config.yaml:/app/config.yaml:ro
       - ./prompts:/app/prompts:ro
+      - ${SB_DOCS_DIR:-./docs}:/data/docs:ro
     environment:
       - CONFIG_PATH=/app/config.yaml
     extra_hosts:

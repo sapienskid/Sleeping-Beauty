@@ -1,12 +1,12 @@
 FROM python:3.12-slim
 
-# Phase 2: uncomment for OCR support
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-#     tesseract-ocr \
-#     tesseract-ocr-eng \
-#     libgl1-mesa-glx \
-#     libglib2.0-0 \
-#     && rm -rf /var/lib/apt/lists/*
+# OCR + system deps for document processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

@@ -1,5 +1,4 @@
 # Sleeping Beauty — Gateway Configuration
-# Phase 1: proxy-only (no RAG yet)
 
 gateway:
   host: "0.0.0.0"
