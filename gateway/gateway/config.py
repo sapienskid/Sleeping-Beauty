@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -21,7 +22,7 @@ class LlamaChatConfig(BaseModel):
 
 
 class LlamaEmbedConfig(BaseModel):
-    backend: str = "sentence-transformers"
+    backend: Literal["sentence-transformers", "llama-server"] = "sentence-transformers"
     model: str = "all-MiniLM-L6-v2"
     base_url: str | None = None  # only used when backend == "llama-server"
 
