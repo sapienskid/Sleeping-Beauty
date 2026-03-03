@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+echo "Stopping Sleeping Beauty..."
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Stop Docker Compose services
+docker compose -f "$REPO_DIR/docker-compose.yaml" down
+echo "  Docker services stopped"
+
+# Stop llama-server (chat) on host
+if systemctl --user is-active --quiet llama-chat.service; then
+    systemctl --user stop llama-chat.service
+    echo "  llama-chat stopped"
+fi
+
+# Stop llama-server (embed) on host if running
+if systemctl --user is-active --quiet llama-embed.service 2>/dev/null; then
+    systemctl --user stop llama-embed.service
+    echo "  llama-embed stopped"
+fi
+
+echo "Sleeping Beauty is asleep."

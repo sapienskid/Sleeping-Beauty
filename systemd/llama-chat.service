@@ -1,0 +1,22 @@
+[Unit]
+Description=llama.cpp server (chat)
+After=network.target
+
+[Service]
+Type=simple
+Environment=PATH=/opt/cuda/lib64:%h/.local/bin:/usr/local/bin:/usr/bin
+Environment=LD_LIBRARY_PATH=/opt/cuda/lib64
+ExecStart=%h/.local/bin/llama-server \
+    --model %h/models/current-chat.gguf \
+    --alias sleeping-beauty \
+    --host 0.0.0.0 \
+    --port 8080 \
+    --ctx-size 8192 \
+    --n-gpu-layers 99 \
+    --threads 8 \
+    --jinja
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

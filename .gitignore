@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Linting/formatting caches
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Docker
+# (don't ignore docker-compose.yaml or Dockerfiles)
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Models (too large for git)
+*.gguf
+
+# Chroma local data (use Docker volume instead)
+chroma-data/
