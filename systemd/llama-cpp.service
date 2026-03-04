@@ -1,0 +1,50 @@
+[Unit]
+Description=llama.cpp OpenAI-compatible server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sapiens
+Group=sapiens
+WorkingDirectory=/home/sapiens
+EnvironmentFile=-/etc/default/llama-cpp
+Environment=LLAMA_SERVER_BIN=/home/sapiens/llama.cpp/build-cuda/bin/llama-server
+Environment=LLAMA_HOST=0.0.0.0
+Environment=LLAMA_PORT=10000
+Environment=LLAMA_MODELS_DIR=/home/sapiens/models
+Environment=LLAMA_N_GPU_LAYERS=20
+Environment=LLAMA_CONTEXT_SIZE=4096
+Environment=LLAMA_PARALLEL=1
+Environment=LLAMA_BATCH_SIZE=128
+Environment=LLAMA_UBATCH_SIZE=32
+Environment=LLAMA_KV_CACHE_TYPE_K=q8_0
+Environment=LLAMA_KV_CACHE_TYPE_V=q8_0
+Environment=LLAMA_MODELS_MAX=1
+Environment=LLAMA_CACHE_RAM=1400
+ExecStart=/usr/bin/bash -lc '\
+  exec "$$LLAMA_SERVER_BIN" \
+    --host "$$LLAMA_HOST" \
+    --port "$$LLAMA_PORT" \
+    --models-dir "$$LLAMA_MODELS_DIR" \
+    --models-max "$$LLAMA_MODELS_MAX" \
+    --cache-ram "$$LLAMA_CACHE_RAM" \
+    -ngl "$$LLAMA_N_GPU_LAYERS" \
+    -c "$$LLAMA_CONTEXT_SIZE" \
+    -np "$$LLAMA_PARALLEL" \
+    -b "$$LLAMA_BATCH_SIZE" \
+    -ub "$$LLAMA_UBATCH_SIZE" \
+    -ctk "$$LLAMA_KV_CACHE_TYPE_K" \
+    -ctv "$$LLAMA_KV_CACHE_TYPE_V" \
+    -fa on \
+    --cache-prompt \
+    --metrics \
+    --slots \
+    --jinja'
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15s
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
