@@ -8,7 +8,6 @@ services:
     depends_on:
       - qdrant
       - docling
-      - embeddings
       - edge-tts
     ports:
       - "${OPENWEBUI_PORT:-3000}:8080"
@@ -107,34 +106,10 @@ services:
     networks:
       - ai_net
 
-  embeddings:
-    image: "${EMBEDDING_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cuda-1.9}"
-    restart: unless-stopped
-    ports:
-      - "${EMBEDDING_PORT:-8081}:80"
-    gpus: all
-    environment:
-      HF_TOKEN: "${HF_TOKEN:-}"
-    command:
-      - "--model-id"
-      - "${EMBEDDING_MODEL_ID:-Qwen/Qwen3-Embedding-0.6B}"
-      - "--dtype"
-      - "${EMBEDDING_DTYPE:-float16}"
-      - "--max-batch-tokens"
-      - "${EMBEDDING_MAX_BATCH_TOKENS:-2048}"
-      - "--max-concurrent-requests"
-      - "${EMBEDDING_MAX_CONCURRENT_REQUESTS:-4}"
-      - "--auto-truncate"
-    volumes:
-      - embedding_cache:/data
-    networks:
-      - ai_net
-
 volumes:
   open_webui_data:
   qdrant_data:
   docling_data:
-  embedding_cache:
 
 networks:
   ai_net:
