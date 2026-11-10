@@ -12,7 +12,7 @@ Environment=PYTHONUNBUFFERED=1
 Environment=PATH=@PROJECT_DIR@/.venv/bin:/opt/cuda/bin:/usr/local/bin:/usr/bin:/bin
 EnvironmentFile=-@PROJECT_DIR@/.env
 ExecStart=@PROJECT_DIR@/.venv/bin/python -m src.cli serve --host @SB_HOST@ --port @SB_PORT@
-ExecStartPost=/usr/bin/bash -c 'for _ in $(seq 1 40); do /usr/bin/curl -sf http://127.0.0.1:@SB_PORT@/api/health >/dev/null 2>&1 && exit 0; sleep 0.25; done; exit 1'
+ExecStartPost=@PROJECT_DIR@/.venv/bin/python @PROJECT_DIR@/scripts/wait-ready.py --url http://127.0.0.1:@SB_PORT@/api/health --mode http --timeout 20
 Restart=on-failure
 RestartSec=3
 TimeoutStopSec=15s

@@ -209,18 +209,65 @@ def _forward_headers(request: Request) -> dict:
 async def proxy_props(request: Request):
     qs = f"?{request.url.query}" if request.url.query else ""
     url = f"{_llama_root_url()}/props{qs}"
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        r = await client.get(url)
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.get(url, headers=_forward_headers(request))
         return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
 
 
 @app.get("/models")
 @app.get("/v1/models")
-async def proxy_models():
+async def proxy_models(request: Request):
     url = f"{_llama_v1_url()}/models"
     async with httpx.AsyncClient(timeout=10.0) as client:
-        r = await client.get(url)
+        r = await client.get(url, headers=_forward_headers(request))
         return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
+
+
+@app.post("/models/load")
+async def proxy_models_load(request: Request):
+    url = f"{_llama_root_url()}/models/load"
+    body = await request.body()
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        r = await client.post(url, content=body, headers=_forward_headers(request))
+        return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
+
+
+@app.post("/models/unload")
+async def proxy_models_unload(request: Request):
+    url = f"{_llama_root_url()}/models/unload"
+    body = await request.body()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.post(url, content=body, headers=_forward_headers(request))
+        return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
+
+
+@app.get("/models/sse")
+async def proxy_models_sse(request: Request):
+    url = f"{_llama_root_url()}/models/sse"
+    client = httpx.AsyncClient(timeout=httpx.Timeout(None, connect=10.0))
+    try:
+        req = client.build_request("GET", url, headers=_forward_headers(request))
+        r = await client.send(req, stream=True)
+    except Exception:
+        await client.aclose()
+        raise
+
+    if r.status_code != 200:
+        body = await r.aread()
+        ctype = r.headers.get("content-type", "application/json")
+        await r.aclose()
+        await client.aclose()
+        return Response(content=body, status_code=r.status_code, media_type=ctype)
+
+    async def _stream_sse():
+        try:
+            async for chunk in r.aiter_raw():
+                yield chunk
+        finally:
+            await r.aclose()
+            await client.aclose()
+
+    return StreamingResponse(_stream_sse(), status_code=r.status_code, media_type="text/event-stream")
 
 
 @app.get("/slots")
@@ -391,6 +438,8 @@ async def chat_completions(request: Request, payload: dict):
     }
     clean_payload.pop("tools", None)
     clean_payload.pop("tool_choice", None)
+    if clean_payload.get("model") in (None, "", "default"):
+        clean_payload["model"] = settings.LLM_MODEL_NAME
 
     if payload.get("stream", False):
         client = httpx.AsyncClient(timeout=120.0)

@@ -1,5 +1,5 @@
 [Unit]
-Description=Sleeping Beauty LLM Server (llama.cpp on :@LLM_PORT@)
+Description=Sleeping Beauty LLM Router Server (llama.cpp on :@LLM_PORT@)
 PartOf=sleeping-beauty.service
 @NETWORK_UNIT_LINES@StartLimitIntervalSec=60
 StartLimitBurst=5
@@ -9,8 +9,8 @@ Type=simple
 @SYSTEM_USER_LINES@WorkingDirectory=@PROJECT_DIR@
 Environment=PATH=/opt/cuda/bin:/usr/local/bin:/usr/bin:/bin
 Environment=LD_LIBRARY_PATH=/opt/cuda/lib64:@LLAMA_BIN_DIR@
-ExecStart=@LLAMA_SERVER_BIN@ --host @LLAMA_HOST@ --port @LLM_PORT@ -m @LLM_MODEL@ -ngl @LLAMA_NGL@ -fa on -c @LLAMA_CTX@ --jinja
-ExecStartPost=/usr/bin/bash -c 'for _ in $(seq 1 60); do /usr/bin/curl -sf http://127.0.0.1:@LLM_PORT@/health >/dev/null 2>&1 && exit 0; sleep 0.5; done; exit 1'
+ExecStart=@LLAMA_SERVER_BIN@ --host @LLAMA_HOST@ --port @LLM_PORT@ --models-preset @PRESET_PATH@ --models-max 1 --models-autoload
+ExecStartPost=@PROJECT_DIR@/.venv/bin/python @PROJECT_DIR@/scripts/wait-ready.py --url http://127.0.0.1:@LLM_PORT@/v1/models --mode router --timeout 45
 Restart=on-failure
 RestartSec=3
 TimeoutStopSec=15s

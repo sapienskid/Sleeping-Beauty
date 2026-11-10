@@ -69,6 +69,7 @@ class RAGEngine:
             "messages": messages,
             "temperature": temperature if temperature is not None else settings.LLM_TEMPERATURE,
             "max_tokens": settings.LLM_MAX_TOKENS,
+            "chat_template_kwargs": {"enable_thinking": False},
             "stream": True,
         }
 
@@ -140,6 +141,7 @@ class RAGEngine:
             "messages": messages,
             "temperature": temperature if temperature is not None else settings.LLM_TEMPERATURE,
             "max_tokens": settings.LLM_MAX_TOKENS,
+            "chat_template_kwargs": {"enable_thinking": False},
             "stream": False,
         }
 

@@ -20,9 +20,10 @@ A zero-Docker, ultra-fast local knowledge search and retrieval-augmented generat
 │  └── Grounded Micro-RAG Engine (Strict XML delimiters, zero-halluc)    │
 ├────────────────────────────────────────────────────────────────────────┤
 │                          LOCAL LLM RUNTIME                             │
-│  llama-server (Host GPU :10000)                                        │
-│  • Micro LLMs: Qwen 2.5 1.5B / DeepSeek-R1-1.5B / Gemma 2 2B           │
-│  • Built-in llama.cpp web UI also available at :10000                  │
+│  llama-server Router (Host GPU :10000, --models-max 1)                 │
+│  • Qwen3.5-2B (Default)                                                │
+│  • Qwen3.5-2B-WSP & Qwen3.5-0.8B-WSP (Weight-Space Programming)        │
+│  • Switch models directly in Web UI (:8000) or built-in UI (:10000)    │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -57,22 +58,23 @@ cp .env.example .env
 ./sb --help
 ```
 
-### 3. Download a 1–2B Micro Model
+### 3. Download 1–2B Models (Qwen3.5-2B + Weight-Space Programming)
 
-Run the download script to fetch one of the recommended models:
+Download **Qwen3.5-2B** (default) and optional **Weight-Space Programming (WSP)** variants into `/home/sapiens/models`:
 
 ```bash
-# Top pick for fast RAG & code (Qwen 2.5 1.5B Instruct Q8_0):
-./scripts/download-hf-model.sh Qwen/Qwen2.5-1.5B-Instruct-GGUF \
-  --file qwen2.5-1.5b-instruct-q8_0.gguf
+# Official Qwen3.5-2B GGUF (default)
+hf download unsloth/Qwen3.5-2B-GGUF Qwen3.5-2B-Q8_0.gguf \
+  --local-dir /home/sapiens/models
 
-# Or the micro reasoning model (DeepSeek-R1 Distill 1.5B with chain-of-thought):
-./scripts/download-hf-model.sh unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF \
-  --file DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf
+# Qwen3.5-2B improved via Weight-Space Programming (loop-ablated direct answers)
+hf download NikitaLazarev/Qwen3.5-2B-WSP-GGUF Qwen3.5-2B-UD-Q4_K_XL-wsp.gguf \
+  --local-dir /home/sapiens/models
 
-# Or Google Gemma 2 2B Instruct:
-./scripts/download-hf-model.sh bartowski/gemma-2-2b-it-GGUF \
-  --file gemma-2-2b-it-Q8_0.gguf
+# RikiyaT / MIT Sparks of Weight-Space Programming Qwen3.5-0.8B (MATH-500 & IFEval boost)
+hf download prithivMLmods/Qwen3.5-0.8B-weight-space-programming-GGUF \
+  Qwen3.5-0.8B-weight-space-programming.Q8_0.gguf \
+  --local-dir /home/sapiens/models
 ```
 
 ### 4. Build & Run as Systemd Daemon
