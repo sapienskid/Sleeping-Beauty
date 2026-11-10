@@ -35,6 +35,16 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path in ("/", "/index.html", "/sw.js"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 # --- Request Models ---
 class IndexRequest(BaseModel):
     vault_path: str
@@ -312,7 +322,7 @@ async def chat_completions(payload: dict):
                             continue
                         if line.startswith("data: [DONE]"):
                             if chunks and payload.get("include_sources", True):
-                                citations = "\n\n---\n**📚 Grounding Sources:**\n"
+                                citations = "\n\n---\n**Sources & Citations:**\n"
                                 for idx, c in enumerate(chunks, 1):
                                     rel = c.get("relative_path", "")
                                     sec = f" > {c.get('section')}" if c.get("section") else ""
@@ -332,7 +342,7 @@ async def chat_completions(payload: dict):
         resp = await client.post(endpoint, json=clean_payload, headers=headers)
         data = resp.json()
         if chunks and payload.get("include_sources", True) and "choices" in data and len(data["choices"]) > 0:
-            citations = "\n\n---\n**📚 Grounding Sources:**\n"
+            citations = "\n\n---\n**Sources & Citations:**\n"
             for idx, c in enumerate(chunks, 1):
                 rel = c.get("relative_path", "")
                 sec = f" > {c.get('section')}" if c.get("section") else ""
@@ -350,8 +360,44 @@ def dashboard_page():
     return "<h1>Sleeping Beauty Local Knowledge Hub is running.</h1>"
 
 
-# --- Serve llama.cpp Official Web UI at Root ---
+# --- Serve llama.cpp Official Web UI at Root with Cache-Busting ---
 LLAMA_UI_DIR = Path(__file__).parent / "llama_ui"
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
+async def serve_root():
+    index_path = LLAMA_UI_DIR / "index.html"
+    if index_path.exists():
+        content = index_path.read_text(encoding="utf-8")
+        return Response(
+            content=content,
+            media_type="text/html",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+    return HTMLResponse("<h1>UI not found</h1>", status_code=404)
+
+
+@app.get("/sw.js")
+async def serve_sw():
+    sw_path = LLAMA_UI_DIR / "sw.js"
+    if sw_path.exists():
+        content = sw_path.read_text(encoding="utf-8")
+        return Response(
+            content=content,
+            media_type="application/javascript",
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
+    return Response(content="", media_type="application/javascript")
+
+
 if LLAMA_UI_DIR.exists():
     app.mount("/", StaticFiles(directory=str(LLAMA_UI_DIR), html=True), name="llama_ui")
 

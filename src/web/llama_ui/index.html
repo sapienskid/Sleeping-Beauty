@@ -71,7 +71,35 @@
 		<link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" href="./apple-splash-portrait-dark-2048x2732.png">
 		<link rel="apple-touch-startup-image" media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" href="./apple-splash-portrait-dark-640x1136.png">
 		<link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" href="./apple-splash-portrait-dark-750x1334.png">
-		</head>
+		
+		<!-- Service Worker Cache Purge & Buster -->
+		<script>
+			if ('serviceWorker' in navigator) {
+				navigator.serviceWorker.getRegistrations().then(function(regs) {
+					for (var r of regs) r.unregister();
+				});
+			}
+			if ('caches' in window) {
+				caches.keys().then(function(keys) {
+					for (var k of keys) caches.delete(k);
+				});
+			}
+		</script>
+		
+		<!-- Purge Service Worker and CacheStorage -->
+		<script>
+			if ('serviceWorker' in navigator) {
+				navigator.serviceWorker.getRegistrations().then(function(regs) {
+					for (var r of regs) r.unregister();
+				});
+			}
+			if ('caches' in window) {
+				caches.keys().then(function(keys) {
+					for (var k of keys) caches.delete(k);
+				});
+			}
+		</script>
+	</head>
 
 	<body data-sveltekit-preload-data="hover">
 		<div style="display: contents">
@@ -94,60 +122,68 @@
 		<!-- Sleeping Beauty RAG Controls & Vault Management Layer   -->
 		<!-- ======================================================== -->
 		<style>
+			.sb-icon {
+				display: inline-block;
+				vertical-align: middle;
+				flex-shrink: 0;
+			}
+			/* High-visibility Floating Top Toolbar */
 			#sb-rag-toolbar {
-				position: fixed;
-				top: 14px;
-				right: 18px;
-				z-index: 99999;
-				display: flex;
-				align-items: center;
-				gap: 8px;
-				background: rgba(24, 24, 27, 0.88);
-				backdrop-filter: blur(14px);
-				-webkit-backdrop-filter: blur(14px);
-				border: 1px solid rgba(63, 63, 70, 0.7);
-				border-radius: 9999px;
-				padding: 4px 6px;
-				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-				font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-				font-size: 13px;
-				user-select: none;
+				position: fixed !important;
+				top: 12px !important;
+				right: 18px !important;
+				z-index: 2147483647 !important;
+				display: flex !important;
+				align-items: center !important;
+				gap: 6px !important;
+				background: rgba(18, 18, 22, 0.95) !important;
+				backdrop-filter: blur(16px) !important;
+				-webkit-backdrop-filter: blur(16px) !important;
+				border: 1px solid rgba(63, 63, 70, 0.8) !important;
+				border-radius: 9999px !important;
+				padding: 4px 8px !important;
+				box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6) !important;
+				font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+				font-size: 12.5px !important;
+				user-select: none !important;
 			}
 			.sb-btn {
 				background: transparent;
 				border: 1px solid transparent;
 				color: #e4e4e7;
-				padding: 5px 12px;
+				padding: 5px 11px;
 				border-radius: 9999px;
 				cursor: pointer;
 				display: flex;
 				align-items: center;
 				gap: 6px;
 				font-weight: 500;
-				font-size: 12.5px;
+				font-size: 12px;
 				transition: all 0.15s ease;
 			}
 			.sb-btn:hover {
-				background: rgba(255, 255, 255, 0.08);
+				background: rgba(255, 255, 255, 0.1);
 			}
 			.sb-btn-active {
-				background: rgba(16, 185, 129, 0.15);
-				border-color: rgba(16, 185, 129, 0.4);
-				color: #34d399;
+				background: rgba(16, 185, 129, 0.18) !important;
+				border-color: rgba(16, 185, 129, 0.45) !important;
+				color: #34d399 !important;
 			}
 			.sb-btn-off {
-				background: rgba(63, 63, 70, 0.35);
-				color: #a1a1aa;
+				background: rgba(63, 63, 70, 0.4) !important;
+				color: #a1a1aa !important;
 			}
 			.sb-dot {
-				width: 7px;
-				height: 7px;
+				width: 7.5px;
+				height: 7.5px;
 				border-radius: 50%;
 				background: #71717a;
+				display: inline-block;
+				flex-shrink: 0;
 			}
 			.sb-dot-active {
-				background: #10b981;
-				box-shadow: 0 0 8px #10b981;
+				background: #10b981 !important;
+				box-shadow: 0 0 9px #10b981 !important;
 			}
 			.sb-dropdown-container {
 				position: relative;
@@ -157,18 +193,22 @@
 				top: calc(100% + 8px);
 				right: 0;
 				background: #18181b;
-				border: 1px solid #27272a;
+				border: 1px solid #3f3f46;
 				border-radius: 12px;
-				min-width: 230px;
+				min-width: 250px;
 				padding: 6px;
-				box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+				box-shadow: 0 12px 35px rgba(0,0,0,0.75);
 				display: none;
 				flex-direction: column;
-				gap: 2px;
-				z-index: 100002;
+				gap: 3px;
+				z-index: 2147483647;
+			}
+			.sb-dropdown-menu.sb-dropup {
+				top: auto;
+				bottom: calc(100% + 8px);
 			}
 			.sb-dropdown-menu.show {
-				display: flex;
+				display: flex !important;
 			}
 			.sb-dropdown-item {
 				padding: 8px 12px;
@@ -187,43 +227,100 @@
 			.sb-dropdown-item.selected {
 				color: #34d399;
 				font-weight: 600;
+				background: rgba(16, 185, 129, 0.08);
+			}
+
+			/* In-Chat Bar (Directly Above Prompt Textarea) */
+			.sb-chat-bar {
+				width: 100%;
+				margin-bottom: 8px;
+				display: block;
+				user-select: none;
+			}
+			.sb-chat-bar-inner {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 6px 10px;
+				background: rgba(24, 24, 27, 0.94);
+				border: 1px solid rgba(63, 63, 70, 0.7);
+				border-radius: 10px;
+				backdrop-filter: blur(12px);
+				-webkit-backdrop-filter: blur(12px);
+			}
+			.sb-chat-pill {
+				background: rgba(39, 39, 42, 0.85);
+				border: 1px solid rgba(63, 63, 70, 0.6);
+				color: #e4e4e7;
+				padding: 4px 11px;
+				border-radius: 7px;
+				font-size: 12px;
+				font-weight: 500;
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				transition: all 0.15s ease;
+			}
+			.sb-chat-pill:hover {
+				background: rgba(63, 63, 70, 0.9);
+				color: #fff;
+			}
+			.sb-chat-pill-active {
+				background: rgba(16, 185, 129, 0.18) !important;
+				border-color: rgba(16, 185, 129, 0.5) !important;
+				color: #34d399 !important;
+				font-weight: 600;
+			}
+			.sb-chat-pill-off {
+				background: rgba(39, 39, 42, 0.5) !important;
+				border-color: rgba(63, 63, 70, 0.4) !important;
+				color: #71717a !important;
+			}
+			.sb-chat-info-hint {
+				color: #71717a;
+				font-size: 11px;
+				margin-left: auto;
+				display: flex;
+				align-items: center;
+				gap: 6px;
 			}
 			
 			/* Slide-Over Drawer */
 			#sb-drawer-backdrop {
-				position: fixed;
-				inset: 0;
-				background: rgba(0, 0, 0, 0.65);
-				backdrop-filter: blur(4px);
-				z-index: 100000;
+				position: fixed !important;
+				inset: 0 !important;
+				background: rgba(0, 0, 0, 0.7) !important;
+				backdrop-filter: blur(5px) !important;
+				z-index: 2147483646 !important;
 				opacity: 0;
 				pointer-events: none;
 				transition: opacity 0.2s ease;
 			}
 			#sb-drawer-backdrop.open {
-				opacity: 1;
-				pointer-events: auto;
+				opacity: 1 !important;
+				pointer-events: auto !important;
 			}
 			#sb-drawer {
-				position: fixed;
-				top: 0;
-				right: 0;
-				bottom: 0;
-				width: 440px;
-				max-width: 90vw;
-				background: #09090b;
-				border-left: 1px solid #27272a;
-				z-index: 100001;
+				position: fixed !important;
+				top: 0 !important;
+				right: 0 !important;
+				bottom: 0 !important;
+				width: 460px !important;
+				max-width: 90vw !important;
+				background: #0d0d10 !important;
+				border-left: 1px solid #27272a !important;
+				z-index: 2147483647 !important;
 				transform: translateX(100%);
 				transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-				display: flex;
-				flex-direction: column;
-				box-shadow: -10px 0 35px rgba(0,0,0,0.8);
-				color: #f4f4f5;
-				font-family: ui-sans-serif, system-ui, sans-serif;
+				display: flex !important;
+				flex-direction: column !important;
+				box-shadow: -15px 0 45px rgba(0,0,0,0.85) !important;
+				color: #f4f4f5 !important;
+				font-family: ui-sans-serif, system-ui, sans-serif !important;
 			}
 			#sb-drawer.open {
-				transform: translateX(0);
+				transform: translateX(0) !important;
 			}
 			.sb-drawer-header {
 				padding: 18px 24px;
@@ -243,11 +340,13 @@
 				background: none;
 				border: none;
 				color: #a1a1aa;
-				font-size: 20px;
 				cursor: pointer;
 				line-height: 1;
 				padding: 4px;
 				border-radius: 6px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
 			}
 			.sb-close-btn:hover {
 				color: #fff;
@@ -293,7 +392,7 @@
 				color: #34d399;
 				display: flex;
 				align-items: center;
-				gap: 6px;
+				gap: 8px;
 			}
 			.sb-vault-actions {
 				display: flex;
@@ -312,58 +411,60 @@
 				text-overflow: ellipsis;
 			}
 			.sb-icon-btn {
-				background: none;
-				border: none;
+				background: transparent;
+				border: 1px solid #3f3f46;
+				color: #a1a1aa;
+				width: 28px;
+				height: 28px;
+				border-radius: 6px;
 				cursor: pointer;
-				color: #71717a;
-				font-size: 14px;
-				padding: 4px;
-				border-radius: 4px;
-				transition: all 0.15s;
+				display: flex;
+				align-items: center;
+				justify-content: center;
 			}
 			.sb-icon-btn:hover {
 				color: #ef4444;
-				background: rgba(239, 68, 68, 0.15);
+				border-color: #ef4444;
+				background: rgba(239, 68, 68, 0.1);
 			}
 			.sb-input {
-				width: 100%;
 				background: #18181b;
-				border: 1px solid #27272a;
-				border-radius: 8px;
-				padding: 10px 12px;
+				border: 1px solid #3f3f46;
 				color: #f4f4f5;
+				border-radius: 8px;
+				padding: 8px 12px;
 				font-size: 13px;
-				box-sizing: border-box;
+				width: 100%;
 				outline: none;
+				box-sizing: border-box;
 			}
 			.sb-input:focus {
 				border-color: #10b981;
 			}
 			.sb-primary-btn {
 				background: #10b981;
-				color: #000;
-				font-weight: 600;
-				font-size: 13px;
-				padding: 10px 16px;
+				color: #09090b;
 				border: none;
 				border-radius: 8px;
+				padding: 8px 16px;
+				font-size: 13px;
+				font-weight: 600;
 				cursor: pointer;
-				transition: background 0.15s;
-				width: 100%;
-				margin-top: 8px;
+				white-space: nowrap;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 6px;
+				transition: background 0.15s ease;
 			}
 			.sb-primary-btn:hover {
-				background: #059669;
-			}
-			.sb-primary-btn:disabled {
-				opacity: 0.5;
-				cursor: not-allowed;
+				background: #34d399;
 			}
 			.sb-toggle-switch {
 				position: relative;
 				display: inline-block;
-				width: 32px;
-				height: 18px;
+				width: 36px;
+				height: 20px;
 			}
 			.sb-toggle-switch input {
 				opacity: 0;
@@ -373,16 +474,19 @@
 			.sb-slider {
 				position: absolute;
 				cursor: pointer;
-				inset: 0;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
 				background-color: #3f3f46;
 				transition: .2s;
-				border-radius: 18px;
+				border-radius: 20px;
 			}
 			.sb-slider:before {
 				position: absolute;
 				content: "";
-				height: 12px;
-				width: 12px;
+				height: 14px;
+				width: 14px;
 				left: 3px;
 				bottom: 3px;
 				background-color: white;
@@ -393,33 +497,38 @@
 				background-color: #10b981;
 			}
 			input:checked + .sb-slider:before {
-				transform: translateX(14px);
+				transform: translateX(16px);
 			}
 		</style>
 
-		<!-- Floating Toolbar -->
+		<!-- Floating Top Toolbar -->
 		<div id="sb-rag-toolbar">
-			<button id="sb-rag-toggle" class="sb-btn sb-btn-active" title="Toggle RAG Retrieval Grounding">
+			<button id="sb-rag-toggle" class="sb-btn sb-btn-active" type="button" title="Toggle RAG Retrieval Grounding">
 				<span class="sb-dot sb-dot-active" id="sb-rag-dot"></span>
 				<span id="sb-rag-label">RAG: ON</span>
 			</button>
 
 			<div class="sb-dropdown-container">
-				<button id="sb-vault-btn" class="sb-btn" title="Select Active Source Vault">
-					<span id="sb-vault-label">📁 All Sources</span>
-					<span style="font-size: 9px; opacity: 0.6;">▼</span>
+				<button id="sb-vault-btn" class="sb-btn" type="button" title="Select Active Source Vault">
+					<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+					<span id="sb-vault-label">All Sources</span>
+					<svg class="sb-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
 				</button>
 				<div id="sb-vault-menu" class="sb-dropdown-menu">
 					<div class="sb-dropdown-item selected" data-vault="all">
-						<span>📁 All Vaults</span>
-						<span id="sb-total-chunks-badge" style="color: #71717a; font-size: 11px;">(4,138 chunks)</span>
+						<span style="display: flex; align-items: center; gap: 6px;">
+							<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+							All Vaults
+						</span>
+						<span class="sb-total-chunks-badge" style="color: #71717a; font-size: 11px;">(4,138 chunks)</span>
 					</div>
 					<div id="sb-vault-items"></div>
 				</div>
 			</div>
 
-			<button id="sb-manage-btn" class="sb-btn" title="Manage Indexed Vaults & Knowledge Sources">
-				<span>⚙️ Sources</span>
+			<button id="sb-manage-btn" class="sb-btn" type="button" title="Manage Indexed Vaults & Knowledge Sources">
+				<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+				<span>Sources</span>
 			</button>
 		</div>
 
@@ -427,41 +536,53 @@
 		<div id="sb-drawer-backdrop"></div>
 		<div id="sb-drawer">
 			<div class="sb-drawer-header">
-				<h2><span>📚</span> Knowledge Vaults & Sources</h2>
-				<button id="sb-drawer-close" class="sb-close-btn">&times;</button>
+				<h2>
+					<svg class="sb-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+					<span>Knowledge Vaults & Sources</span>
+				</h2>
+				<button id="sb-drawer-close" class="sb-close-btn">
+					<svg class="sb-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+				</button>
 			</div>
+
 			<div class="sb-drawer-body">
 				<div>
-					<div class="sb-section-title">Active Knowledge Vaults</div>
+					<div class="sb-section-title">
+						<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+						Active Knowledge Vaults
+					</div>
 					<div id="sb-vault-list">
-						<div style="color: #71717a; font-size: 13px;">Loading vaults...</div>
+						<!-- Vault cards rendered dynamically -->
 					</div>
 				</div>
 
 				<div>
-					<div class="sb-section-title">Index New Directory / Vault</div>
-					<div style="background: #18181b; border: 1px solid #27272a; border-radius: 10px; padding: 14px;">
-						<div style="font-size: 12px; color: #a1a1aa; margin-bottom: 8px;">
-							Specify an absolute path to any local notes, markdown docs, or research directory:
-						</div>
-						<input type="text" id="sb-new-vault-path" class="sb-input" placeholder="/home/sapiens/Development/Fundaments/handbook" />
-						<button id="sb-index-btn" class="sb-primary-btn">Scan & Index Vault</button>
-						<div id="sb-index-status" style="margin-top: 8px; font-size: 12px; color: #34d399; display: none;"></div>
+					<div class="sb-section-title">
+						<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+						Index New Vault or Folder
+					</div>
+					<div style="display: flex; flex-direction: column; gap: 8px;">
+						<input type="text" id="sb-new-vault-path" class="sb-input" placeholder="e.g. /home/sapiens/Development/Fundaments/handbook" />
+						<button id="sb-index-btn" class="sb-primary-btn" type="button">
+							<svg class="sb-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+							<span>Scan &amp; Index Vault</span>
+						</button>
+						<div id="sb-index-status" style="font-size: 12px; display: none;"></div>
 					</div>
 				</div>
 
 				<div>
-					<div class="sb-section-title">Retrieval Settings</div>
-					<div style="background: #18181b; border: 1px solid #27272a; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px;">
-						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span style="font-size: 13px; color: #d4d4d8;">Top Chunks (k)</span>
-							<div style="display: flex; align-items: center; gap: 8px;">
-								<input type="range" id="sb-topk-slider" min="1" max="10" value="4" style="accent-color: #10b981; width: 100px;" />
-								<span id="sb-topk-value" style="font-size: 13px; font-weight: 600; color: #10b981; width: 20px;">4</span>
-							</div>
+					<div class="sb-section-title">
+						<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+						RAG Retrieval Parameters
+					</div>
+					<div style="background: #18181b; border: 1px solid #27272a; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 14px;">
+						<div style="display: flex; align-items: center; justify-content: space-between;">
+							<span style="font-size: 13px;">Top-K Chunks: <strong id="sb-topk-value" style="color: #34d399;">4</strong></span>
+							<input type="range" id="sb-topk-slider" min="1" max="10" value="4" style="width: 130px; accent-color: #10b981;" />
 						</div>
-						<div style="display: flex; justify-content: space-between; align-items: center;">
-							<span style="font-size: 13px; color: #d4d4d8;">Append Grounding Sources</span>
+						<div style="display: flex; align-items: center; justify-content: space-between;">
+							<span style="font-size: 13px;">Grounding Citations</span>
 							<label class="sb-toggle-switch">
 								<input type="checkbox" id="sb-citations-toggle" checked />
 								<span class="sb-slider"></span>
@@ -471,7 +592,10 @@
 				</div>
 
 				<div>
-					<div class="sb-section-title">Test Search Engine</div>
+					<div class="sb-section-title">
+						<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+						Test Search Engine
+					</div>
 					<div style="background: #18181b; border: 1px solid #27272a; border-radius: 10px; padding: 14px;">
 						<input type="text" id="sb-test-search-input" class="sb-input" placeholder="Type query to test LanceDB hybrid retrieval..." />
 						<div id="sb-test-search-results" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12px;"></div>
@@ -480,9 +604,16 @@
 			</div>
 		</div>
 
-		<!-- Controller & Fetch Interceptor -->
+		<!-- Controller, Fetch Interceptor & Chat Injection -->
 		<script>
 			(function() {
+				// Icons
+				const SVG_FOLDER = '<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+				const SVG_DATABASE = '<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>';
+				const SVG_SLIDERS = '<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>';
+				const SVG_CHEVRON = '<svg class="sb-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>';
+				const SVG_TRASH = '<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+
 				// Global RAG State
 				window.__RAG_CONFIG__ = {
 					enabled: true,
@@ -513,7 +644,7 @@
 					return originalFetch.apply(this, args);
 				};
 
-				// --- 2. DOM Elements ---
+				// --- 2. Top Toolbar Elements ---
 				const toggleBtn = document.getElementById('sb-rag-toggle');
 				const toggleDot = document.getElementById('sb-rag-dot');
 				const toggleLabel = document.getElementById('sb-rag-label');
@@ -522,6 +653,8 @@
 				const vaultMenu = document.getElementById('sb-vault-menu');
 				const vaultItems = document.getElementById('sb-vault-items');
 				const manageBtn = document.getElementById('sb-manage-btn');
+
+				// Drawer Elements
 				const drawer = document.getElementById('sb-drawer');
 				const drawerBackdrop = document.getElementById('sb-drawer-backdrop');
 				const drawerClose = document.getElementById('sb-drawer-close');
@@ -535,35 +668,17 @@
 				const testSearchInput = document.getElementById('sb-test-search-input');
 				const testSearchResults = document.getElementById('sb-test-search-results');
 
-				// --- 3. RAG Toggle Handler ---
-				toggleBtn.addEventListener('click', () => {
-					window.__RAG_CONFIG__.enabled = !window.__RAG_CONFIG__.enabled;
-					updateRAGButton();
-				});
-
-				function updateRAGButton() {
-					if (window.__RAG_CONFIG__.enabled) {
-						toggleBtn.className = 'sb-btn sb-btn-active';
-						toggleDot.className = 'sb-dot sb-dot-active';
-						toggleLabel.textContent = 'RAG: ON';
-					} else {
-						toggleBtn.className = 'sb-btn sb-btn-off';
-						toggleDot.className = 'sb-dot';
-						toggleLabel.textContent = 'RAG: OFF';
-					}
+				// Toggle RAG helper
+				function setRAGEnabled(val) {
+					window.__RAG_CONFIG__.enabled = val;
+					syncUI();
 				}
 
-				// --- 4. Vault Selector Dropdown ---
-				vaultBtn.addEventListener('click', (e) => {
-					e.stopPropagation();
-					vaultMenu.classList.toggle('show');
-				});
+				function selectVault(vName) {
+					window.__RAG_CONFIG__.selected_vault = vName;
+					syncUI();
+				}
 
-				document.addEventListener('click', () => {
-					vaultMenu.classList.remove('show');
-				});
-
-				// --- 5. Drawer Open/Close ---
 				function openDrawer() {
 					drawer.classList.add('open');
 					drawerBackdrop.classList.add('open');
@@ -575,11 +690,142 @@
 					drawerBackdrop.classList.remove('open');
 				}
 
+				// --- 3. Top Toolbar Handlers ---
+				toggleBtn.addEventListener('click', () => setRAGEnabled(!window.__RAG_CONFIG__.enabled));
+				vaultBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					vaultMenu.classList.toggle('show');
+				});
 				manageBtn.addEventListener('click', openDrawer);
 				drawerClose.addEventListener('click', closeDrawer);
 				drawerBackdrop.addEventListener('click', closeDrawer);
+				document.addEventListener('click', () => {
+					if (vaultMenu) vaultMenu.classList.remove('show');
+					const chatMenu = document.getElementById('sb-chat-vault-menu');
+					if (chatMenu) chatMenu.classList.remove('show');
+				});
 
-				// --- 6. Fetch Vault Stats & Update UI ---
+				// --- 4. In-Chat Bar Injection & Binding ---
+				function injectChatBar() {
+					if (document.getElementById('sb-chat-bar')) return;
+					const textarea = document.querySelector('textarea');
+					if (!textarea) return;
+
+					// Locate insertion point
+					const container = textarea.closest('form') || textarea.closest('.flex-col') || textarea.parentElement;
+					if (!container) return;
+
+					const bar = document.createElement('div');
+					bar.id = 'sb-chat-bar';
+					bar.className = 'sb-chat-bar';
+					bar.innerHTML = `
+						<div class="sb-chat-bar-inner">
+							<button id="sb-chat-toggle" class="sb-chat-pill sb-chat-pill-active" type="button" title="Toggle RAG local retrieval grounding">
+								<span class="sb-dot sb-dot-active" id="sb-chat-dot"></span>
+								<span id="sb-chat-toggle-label">RAG: ON</span>
+							</button>
+							<div class="sb-dropdown-container">
+								<button id="sb-chat-vault-btn" class="sb-chat-pill" type="button" title="Select knowledge source vault">
+									${SVG_DATABASE}
+									<span id="sb-chat-vault-label">All Sources</span>
+									${SVG_CHEVRON}
+								</button>
+								<div id="sb-chat-vault-menu" class="sb-dropdown-menu sb-dropup">
+									<div class="sb-dropdown-item selected" data-vault="all">
+										<span style="display: flex; align-items: center; gap: 6px;">
+											${SVG_DATABASE} All Vaults
+										</span>
+										<span class="sb-total-chunks-badge" style="color: #71717a; font-size: 11px;">(4,138 chunks)</span>
+									</div>
+									<div id="sb-chat-vault-items"></div>
+								</div>
+							</div>
+							<button id="sb-chat-sources-btn" class="sb-chat-pill" type="button" title="Manage knowledge vaults">
+								${SVG_SLIDERS}
+								<span>Sources</span>
+							</button>
+							<span id="sb-chat-status-hint" class="sb-chat-info-hint">Hybrid Search &bull; LanceDB + BM25</span>
+						</div>
+					`;
+
+					container.insertBefore(bar, container.firstChild);
+
+					// In-chat event bindings
+					const chatToggle = bar.querySelector('#sb-chat-toggle');
+					const chatVaultBtn = bar.querySelector('#sb-chat-vault-btn');
+					const chatVaultMenu = bar.querySelector('#sb-chat-vault-menu');
+					const chatSourcesBtn = bar.querySelector('#sb-chat-sources-btn');
+
+					chatToggle.addEventListener('click', (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						setRAGEnabled(!window.__RAG_CONFIG__.enabled);
+					});
+
+					chatVaultBtn.addEventListener('click', (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						chatVaultMenu.classList.toggle('show');
+					});
+
+					chatSourcesBtn.addEventListener('click', (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						openDrawer();
+					});
+
+					const chatAllItem = chatVaultMenu.querySelector('[data-vault="all"]');
+					if (chatAllItem) {
+						chatAllItem.onclick = (e) => {
+							e.stopPropagation();
+							selectVault('all');
+							chatVaultMenu.classList.remove('show');
+						};
+					}
+
+					renderVaultDropdowns();
+					syncUI();
+				}
+
+				// Synchronize state across all elements
+				function syncUI() {
+					const isEnabled = window.__RAG_CONFIG__.enabled;
+					const selVault = window.__RAG_CONFIG__.selected_vault;
+					const vaultText = selVault === 'all' ? 'All Sources' : selVault;
+
+					// Top bar sync
+					if (toggleBtn) {
+						toggleBtn.className = isEnabled ? 'sb-btn sb-btn-active' : 'sb-btn sb-btn-off';
+						toggleDot.className = isEnabled ? 'sb-dot sb-dot-active' : 'sb-dot';
+						toggleLabel.textContent = isEnabled ? 'RAG: ON' : 'RAG: OFF';
+					}
+					if (vaultLabel) vaultLabel.textContent = vaultText;
+
+					// In-chat bar sync
+					const chatToggle = document.getElementById('sb-chat-toggle');
+					const chatDot = document.getElementById('sb-chat-dot');
+					const chatLabel = document.getElementById('sb-chat-toggle-label');
+					const chatVaultLabel = document.getElementById('sb-chat-vault-label');
+
+					if (chatToggle) {
+						chatToggle.className = isEnabled ? 'sb-chat-pill sb-chat-pill-active' : 'sb-chat-pill sb-chat-pill-off';
+						if (chatDot) chatDot.className = isEnabled ? 'sb-dot sb-dot-active' : 'sb-dot';
+						if (chatLabel) chatLabel.textContent = isEnabled ? 'RAG: ON' : 'RAG: OFF';
+					}
+					if (chatVaultLabel) chatVaultLabel.textContent = vaultText;
+
+					// Dropdown selections
+					document.querySelectorAll('.sb-dropdown-item').forEach(el => {
+						const v = el.getAttribute('data-vault');
+						if (v === selVault) {
+							el.classList.add('selected');
+						} else {
+							el.classList.remove('selected');
+						}
+					});
+				}
+
+				// --- 5. Fetch Vault Stats & Update UI ---
 				async function loadVaultStats() {
 					try {
 						const res = await originalFetch('/api/stats');
@@ -587,38 +833,65 @@
 						window.__RAG_CONFIG__.vaults_data = data.vaults || [];
 						renderVaults(data);
 					} catch (e) {
-						console.error('Failed to load stats:', e);
+						console.error('[Sleeping Beauty] Failed to load stats:', e);
 					}
 				}
 
-				function renderVaults(data) {
-					const totalBadge = document.getElementById('sb-total-chunks-badge');
-					if (totalBadge) totalBadge.textContent = `(${data.total_chunks.toLocaleString()} chunks)`;
+				function renderVaultDropdowns() {
+					const data = { vaults: window.__RAG_CONFIG__.vaults_data };
+					const topItems = document.getElementById('sb-vault-items');
+					const chatItems = document.getElementById('sb-chat-vault-items');
 
-					// Render dropdown items
-					vaultItems.innerHTML = '';
+					if (topItems) topItems.innerHTML = '';
+					if (chatItems) chatItems.innerHTML = '';
+
 					data.vaults.forEach(v => {
-						const item = document.createElement('div');
-						item.className = 'sb-dropdown-item' + (window.__RAG_CONFIG__.selected_vault === v.vault_name ? ' selected' : '');
-						item.innerHTML = `<span>📁 ${v.vault_name}</span><span style="color: #71717a; font-size: 11px;">(${v.total_chunks} chunks)</span>`;
-						item.addEventListener('click', () => {
-							window.__RAG_CONFIG__.selected_vault = v.vault_name;
-							vaultLabel.textContent = `📁 ${v.vault_name}`;
-							document.querySelectorAll('.sb-dropdown-item').forEach(el => el.classList.remove('selected'));
-							item.classList.add('selected');
-							vaultMenu.classList.remove('show');
-						});
-						vaultItems.appendChild(item);
+						const isSel = window.__RAG_CONFIG__.selected_vault === v.vault_name;
+
+						// Top item
+						if (topItems) {
+							const item = document.createElement('div');
+							item.className = 'sb-dropdown-item' + (isSel ? ' selected' : '');
+							item.setAttribute('data-vault', v.vault_name);
+							item.innerHTML = `<span style="display:flex; align-items:center; gap:6px;">${SVG_FOLDER} ${v.vault_name}</span><span style="color: #71717a; font-size: 11px;">(${v.total_chunks} chunks)</span>`;
+							item.onclick = (e) => {
+								e.stopPropagation();
+								selectVault(v.vault_name);
+								vaultMenu.classList.remove('show');
+							};
+							topItems.appendChild(item);
+						}
+
+						// Chat item
+						if (chatItems) {
+							const item2 = document.createElement('div');
+							item2.className = 'sb-dropdown-item' + (isSel ? ' selected' : '');
+							item2.setAttribute('data-vault', v.vault_name);
+							item2.innerHTML = `<span style="display:flex; align-items:center; gap:6px;">${SVG_FOLDER} ${v.vault_name}</span><span style="color: #71717a; font-size: 11px;">(${v.total_chunks} chunks)</span>`;
+							item2.onclick = (e) => {
+								e.stopPropagation();
+								selectVault(v.vault_name);
+								const cm = document.getElementById('sb-chat-vault-menu');
+								if (cm) cm.classList.remove('show');
+							};
+							chatItems.appendChild(item2);
+						}
+					});
+				}
+
+				function renderVaults(data) {
+					document.querySelectorAll('.sb-total-chunks-badge').forEach(b => {
+						b.textContent = `(${data.total_chunks.toLocaleString()} chunks)`;
 					});
 
-					// "All Vaults" item click
+					renderVaultDropdowns();
+
+					// Top All Vaults item click
 					const allItem = vaultMenu.querySelector('[data-vault="all"]');
 					if (allItem) {
-						allItem.onclick = () => {
-							window.__RAG_CONFIG__.selected_vault = 'all';
-							vaultLabel.textContent = '📁 All Sources';
-							document.querySelectorAll('.sb-dropdown-item').forEach(el => el.classList.remove('selected'));
-							allItem.classList.add('selected');
+						allItem.onclick = (e) => {
+							e.stopPropagation();
+							selectVault('all');
 							vaultMenu.classList.remove('show');
 						};
 					}
@@ -640,14 +913,17 @@
 						card.innerHTML = `
 							<div class="sb-vault-card-header">
 								<div class="sb-vault-name">
-									<span>📁</span> ${v.vault_name}
+									${SVG_FOLDER}
+									<span>${v.vault_name}</span>
 								</div>
 								<div class="sb-vault-actions">
 									<label class="sb-toggle-switch" title="Enable or Disable this vault from RAG retrieval">
 										<input type="checkbox" class="sb-vault-toggle" data-vault="${v.vault_name}" ${isEnabled ? 'checked' : ''} />
 										<span class="sb-slider"></span>
 									</label>
-									<button class="sb-icon-btn sb-delete-vault-btn" data-vault="${v.vault_name}" title="Delete this vault">&times;</button>
+									<button class="sb-icon-btn sb-delete-vault-btn" data-vault="${v.vault_name}" title="Delete this vault">
+										${SVG_TRASH}
+									</button>
 								</div>
 							</div>
 							<div class="sb-vault-stats">
@@ -687,7 +963,7 @@
 					});
 				}
 
-				// --- 7. Index New Vault Handler ---
+				// --- 6. Index New Vault Handler ---
 				indexBtn.addEventListener('click', async () => {
 					const path = newVaultPath.value.trim();
 					if (!path) return;
@@ -718,11 +994,11 @@
 						indexStatus.textContent = 'Error: ' + e.message;
 					} finally {
 						indexBtn.disabled = false;
-						indexBtn.textContent = 'Scan & Index Vault';
+						indexBtn.innerHTML = '<svg class="sb-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> <span>Scan &amp; Index Vault</span>';
 					}
 				});
 
-				// --- 8. Sliders & Settings ---
+				// --- 7. Sliders & Settings ---
 				topkSlider.addEventListener('input', (e) => {
 					const val = parseInt(e.target.value);
 					topkVal.textContent = val;
@@ -733,7 +1009,7 @@
 					window.__RAG_CONFIG__.include_sources = e.target.checked;
 				});
 
-				// --- 9. Test Search ---
+				// --- 8. Test Search ---
 				let searchTimeout = null;
 				testSearchInput.addEventListener('input', (e) => {
 					clearTimeout(searchTimeout);
@@ -760,6 +1036,9 @@
 						} catch (err) {}
 					}, 250);
 				});
+
+				// Recurring injection check (attaches in-chat bar whenever textarea mounts)
+				setInterval(injectChatBar, 350);
 
 				// Initial stats load
 				loadVaultStats();
