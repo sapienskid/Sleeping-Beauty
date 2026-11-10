@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleeping Beauty — Local Knowledge Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg: #090a0f;
+            --surface: #11131a;
+            --surface-elevated: #181b24;
+            --border: #232834;
+            --border-hover: #333a4d;
+            --text-primary: #f0f2f7;
+            --text-secondary: #9aa2b5;
+            --text-muted: #61697d;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --success: #10b981;
+            --code-bg: #0d0e14;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Nav */
+        header {
+            background-color: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-badge {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: white;
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+
+        .brand-text h1 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .brand-text span {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background-color: var(--bg);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            gap: 4px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background-color: var(--surface-elevated);
+            color: var(--text-primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .stats-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+            background-color: var(--surface-elevated);
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        /* Main Container */
+        main {
+            flex: 1;
+            max-width: 1000px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 28px 20px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Chat / RAG UI */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 170px);
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 85%;
+        }
+
+        .message.user {
+            align-self: flex-end;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            max-width: 95%;
+        }
+
+        .bubble {
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message.user .bubble {
+            background-color: var(--accent);
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        .message.assistant .bubble {
+            background-color: var(--surface-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 2px;
+        }
+
+        .bubble p {
+            margin-bottom: 10px;
+        }
+
+        .bubble p:last-child {
+            margin-bottom: 0;
+        }
+
+        .bubble pre {
+            background-color: var(--code-bg);
+            padding: 10px 14px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .bubble code {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: var(--code-bg);
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        /* Collapsible Thought block (DeepSeek-R1 style) */
+        details.thought-block {
+            background-color: rgba(99, 102, 241, 0.05);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        details.thought-block summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--accent);
+            outline: none;
+        }
+
+        .sources-panel {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .source-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+            background-color: var(--code-bg);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            display: inline-block;
+        }
+
+        .input-bar {
+            padding: 16px;
+            background-color: var(--surface);
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-bar textarea {
+            flex: 1;
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            padding: 12px 14px;
+            font-size: 14px;
+            resize: none;
+            height: 48px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .input-bar textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .send-btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .send-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Search UI */
+        .search-box {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .search-box input {
+            flex: 1;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            padding: 14px 18px;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .result-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 14px;
+            transition: border-color 0.15s;
+        }
+
+        .result-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .result-title {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+
+        .result-path {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .result-score {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            background-color: var(--accent-glow);
+            color: var(--accent);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .result-text {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            background-color: var(--bg);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            white-space: pre-wrap;
+        }
+
+        /* Vaults / Ingest UI */
+        .card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .card p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 18px;
+        }
+
+        .vault-input-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .vault-input-group input {
+            flex: 1;
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            padding: 12px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .vault-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 14px;
+        }
+
+        .vault-table th, .vault-table td {
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .vault-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .del-btn {
+            background-color: transparent;
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .del-btn:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <div class="logo-badge">SB</div>
+            <div class="brand-text">
+                <h1>Sleeping Beauty</h1>
+                <span>Local Knowledge & RAG Hub</span>
+            </div>
+        </div>
+
+        <nav class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('chat')">Ask Knowledge</button>
+            <button class="tab-btn" onclick="switchTab('search')">Hybrid Search</button>
+            <button class="tab-btn" onclick="switchTab('vaults')">Manage Vaults</button>
+        </nav>
+
+        <div class="stats-badge" id="statsBadge">
+            <span class="status-dot"></span>
+            <span id="statsText">Connecting...</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- 1. Chat Tab -->
+        <section id="chatTab" class="tab-content active">
+            <div class="chat-container">
+                <div class="messages-area" id="messagesArea">
+                    <div class="message assistant">
+                        <div class="bubble">
+                            <p><strong>Welcome to Sleeping Beauty.</strong></p>
+                            <p>I search your indexed local vaults and answer strictly using grounded context from your files. Ask me anything about your notes, documentation, or code.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-bar">
+                    <textarea id="chatInput" placeholder="Ask a question about your knowledge..." onkeydown="handleChatKey(event)"></textarea>
+                    <button class="send-btn" onclick="sendChat()">Ask</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Search Tab -->
+        <section id="searchTab" class="tab-content">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search across all vaults (semantic + BM25 keyword)..." onkeydown="if(event.key==='Enter') runSearch()">
+                <button class="send-btn" onclick="runSearch()">Search</button>
+            </div>
+            <div id="searchResults"></div>
+        </section>
+
+        <!-- 3. Vaults Management Tab -->
+        <section id="vaultsTab" class="tab-content">
+            <div class="card">
+                <h2>Index a Local Directory or Vault</h2>
+                <p>Provide an absolute path to any folder (e.g. <code>/home/sapiens/Second Brain/Notes</code>, a code repo, or research directory). Supported: Markdown, TXT, PDF, Code files.</p>
+                <div class="vault-input-group">
+                    <input type="text" id="vaultPathInput" placeholder="/absolute/path/to/vault">
+                    <button class="send-btn" id="indexBtn" onclick="startIndexing()">Index Vault</button>
+                </div>
+                <div id="indexingFeedback" style="margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-secondary);"></div>
+            </div>
+
+            <div class="card">
+                <h2>Indexed Vaults & Collections</h2>
+                <table class="vault-table">
+                    <thead>
+                        <tr>
+                            <th>Vault Name</th>
+                            <th>Documents</th>
+                            <th>Chunks</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vaultsTableBody">
+                        <tr><td colspan="4" style="color: var(--text-muted);">Loading vaults...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            if (tabName === 'chat') {
+                document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+                document.getElementById('chatTab').classList.add('active');
+            } else if (tabName === 'search') {
+                document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+                document.getElementById('searchTab').classList.add('active');
+            } else if (tabName === 'vaults') {
+                document.querySelector('.tab-btn:nth-child(3)').classList.add('active');
+                document.getElementById('vaultsTab').classList.add('active');
+                refreshVaults();
+            }
+        }
+
+        async function updateStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                document.getElementById('statsText').innerText = `${data.total_chunks} chunks | ${data.vaults.length} vaults`;
+            } catch (e) {
+                document.getElementById('statsText').innerText = "Offline";
+            }
+        }
+
+        function handleChatKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChat();
+            }
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const query = input.value.trim();
+            if (!query) return;
+
+            input.value = '';
+            const messagesArea = document.getElementById('messagesArea');
+
+            // Append user bubble
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user';
+            userMsg.innerHTML = `<div class="bubble"><p>${escapeHtml(query)}</p></div>`;
+            messagesArea.appendChild(userMsg);
+
+            // Append assistant bubble skeleton
+            const assistantMsg = document.createElement('div');
+            assistantMsg.className = 'message assistant';
+            assistantMsg.innerHTML = `<div class="bubble"><div class="bubble-content"><em>Searching knowledge and formulating answer...</em></div><div class="sources-panel" style="display:none;"></div></div>`;
+            messagesArea.appendChild(assistantMsg);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+
+            const bubbleContent = assistantMsg.querySelector('.bubble-content');
+            const sourcesPanel = assistantMsg.querySelector('.sources-panel');
+
+            try {
+                const res = await fetch('/api/ask/stream', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query})
+                });
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let fullAnswer = "";
+                let inThought = false;
+                let thoughtText = "";
+                let answerText = "";
+
+                while (true) {
+                    const {done, value} = await reader.read();
+                    if (done) break;
+
+                    const chunkStr = decoder.decode(value);
+                    const lines = chunkStr.split('\n');
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (jsonStr === '[DONE]') break;
+
+                        try {
+                            const data = JSON.parse(jsonStr);
+
+                            if (data.type === 'sources') {
+                                if (data.sources && data.sources.length > 0) {
+                                    sourcesPanel.style.display = 'flex';
+                                    sourcesPanel.innerHTML = '<strong>Sources Retrieved:</strong>';
+                                    data.sources.forEach(s => {
+                                        const tag = document.createElement('span');
+                                        tag.className = 'source-tag';
+                                        tag.title = s.text;
+                                        tag.innerText = `📄 ${s.relative_path || s.title} (Score: ${Math.round(s.score * 100) / 100})`;
+                                        sourcesPanel.appendChild(tag);
+                                    });
+                                }
+                            } else if (data.type === 'token') {
+                                fullAnswer += data.token;
+
+                                // Handle DeepSeek-R1 style <think> blocks
+                                if (fullAnswer.includes('<think>') && !fullAnswer.includes('</think>')) {
+                                    const parts = fullAnswer.split('<think>');
+                                    thoughtText = parts[1] || "";
+                                    bubbleContent.innerHTML = `<details class="thought-block" open><summary>Thinking process...</summary><div style="margin-top:8px; white-space:pre-wrap;">${escapeHtml(thoughtText)}</div></details><em>Formulating answer...</em>`;
+                                } else if (fullAnswer.includes('</think>')) {
+                                    const parts = fullAnswer.split('</think>');
+                                    const cleanThought = parts[0].replace('<think>', '').trim();
+                                    answerText = parts[1].trim();
+                                    bubbleContent.innerHTML = `<details class="thought-block"><summary>Thinking process (${cleanThought.length} chars)</summary><div style="margin-top:8px; white-space:pre-wrap;">${escapeHtml(cleanThought)}</div></details><div>${marked.parse(answerText)}</div>`;
+                                } else {
+                                    bubbleContent.innerHTML = marked.parse(fullAnswer);
+                                }
+                                messagesArea.scrollTop = messagesArea.scrollHeight;
+                            } else if (data.type === 'error') {
+                                bubbleContent.innerHTML = `<span style="color:#ef4444;">${escapeHtml(data.error)}</span>`;
+                            }
+                        } catch (e) {
+                            // non-json line
+                        }
+                    }
+                }
+            } catch (err) {
+                bubbleContent.innerHTML = `<span style="color:#ef4444;">Request error: ${escapeHtml(err.message)}</span>`;
+            }
+        }
+
+        async function runSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            const container = document.getElementById('searchResults');
+            container.innerHTML = '<em>Searching hybrid index (BM25 + Dense Vectors)...</em>';
+
+            try {
+                const res = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query, top_k: 8})
+                });
+                const data = await res.json();
+
+                if (!data.results || data.results.length === 0) {
+                    container.innerHTML = '<p style="color:var(--text-muted); margin-top:16px;">No matching documents found.</p>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                data.results.forEach((r, idx) => {
+                    const card = document.createElement('div');
+                    card.className = 'result-card';
+                    card.innerHTML = `
+                        <div class="result-header">
+                            <div>
+                                <span class="result-title">${idx + 1}. ${escapeHtml(r.title)}</span>
+                                <span class="result-path"> (${escapeHtml(r.relative_path)})</span>
+                            </div>
+                            <span class="result-score">Score: ${Math.round(r.score * 100) / 100}</span>
+                        </div>
+                        <div class="result-text">${escapeHtml(r.text)}</div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (e) {
+                container.innerHTML = `<span style="color:#ef4444;">Search failed: ${e.message}</span>`;
+            }
+        }
+
+        async function startIndexing() {
+            const pathInput = document.getElementById('vaultPathInput');
+            const feedback = document.getElementById('indexingFeedback');
+            const btn = document.getElementById('indexBtn');
+            const vault_path = pathInput.value.trim();
+
+            if (!vault_path) {
+                feedback.innerText = "Please specify an absolute path.";
+                return;
+            }
+
+            btn.disabled = true;
+            feedback.innerText = `Indexing vault: ${vault_path}... (embedding chunks)`;
+
+            try {
+                const res = await fetch('/api/index', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({vault_path})
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    feedback.innerHTML = `Successfully indexed <strong>${data.vault_name}</strong>: ${data.files_scanned} files scanned, ${data.chunks_indexed} chunks embedded and indexed into LanceDB.`;
+                    pathInput.value = '';
+                    updateStats();
+                    refreshVaults();
+                } else {
+                    feedback.innerText = `Error: ${data.detail || JSON.stringify(data)}`;
+                }
+            } catch (e) {
+                feedback.innerText = `Indexing request failed: ${e.message}`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function refreshVaults() {
+            const tbody = document.getElementById('vaultsTableBody');
+            try {
+                const res = await fetch('/api/vaults');
+                const vaults = await res.json();
+
+                if (!vaults || vaults.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="color: var(--text-muted);">No vaults indexed yet. Ingest your first directory above!</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                vaults.forEach(v => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><strong>${escapeHtml(v.vault_name)}</strong></td>
+                        <td>${v.total_documents}</td>
+                        <td>${v.total_chunks}</td>
+                        <td><button class="del-btn" onclick="deleteVault('${escapeHtml(v.vault_name)}')">Delete</button></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="4" style="color: #ef4444;">Error loading vaults: ${e.message}</td></tr>`;
+            }
+        }
+
+        async function deleteVault(name) {
+            if (!confirm(`Are you sure you want to delete vault '${name}' from index?`)) return;
+            try {
+                await fetch(`/api/vaults/${encodeURIComponent(name)}`, {method: 'DELETE'});
+                refreshVaults();
+                updateStats();
+            } catch (e) {
+                alert(`Error deleting vault: ${e.message}`);
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // Initialize on load
+        updateStats();
+    </script>
+</body>
+</html>

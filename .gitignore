@@ -1,1 +1,27 @@
+# Environments & secrets
 .env
+.venv/
+env/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Local databases & model cache
+data/
+.lancedb/
+*.lance/
+cache/
+models/
+
+# OS & Editor
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/

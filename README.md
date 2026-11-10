@@ -1,200 +1,152 @@
-# Sleeping Beauty Local AI
+# Sleeping Beauty — Local Knowledge Search & RAG Hub
 
-A fully local RAG-powered AI assistant. Upload your documents, build knowledge bases, and use them to write emails, create social media posts in your style, do research, and more -- all private, all offline.
+A zero-Docker, ultra-fast local knowledge search and retrieval-augmented generation (RAG) assistant. Index any local folder or vault (Markdown notes, research papers, codebases, PDFs) and search or chat with your knowledge using **EmbeddingGemma-2**, **LanceDB**, and **1–2B micro LLMs** on your local GPU.
 
-**Stack:** llama.cpp (host) + Open WebUI + Qdrant + Docling + Qwen3 Embeddings + Edge TTS
-
-## Quick start
-
-### 1. Configure
-
-```bash
-cp .env.example .env
-# Edit .env -- set HF_TOKEN at minimum
-```
-
-### 2. Build llama.cpp
-
-```bash
-./scripts/build-llama-cpp-gpu.sh
-```
-
-### 3. Download a model
-
-```bash
-./scripts/download-hf-model.sh bartowski/Llama-3.1-8B-Instruct-GGUF \
-  --file Llama-3.1-8B-Instruct-Q4_K_M.gguf
-```
-
-### 4. Install llama.cpp as a service
-
-```bash
-sudo ./scripts/install-llama-systemd.sh
-```
-
-### 5. Start the stack
-
-```bash
-docker compose up -d --pull always
-```
-
-Done. Open http://localhost:3000.
-
-## Endpoints
-
-| Service | URL |
-|---------|-----|
-| Open WebUI | http://localhost:3000 |
-| llama.cpp API | http://localhost:10000/v1 |
-| Qdrant | http://localhost:6333 |
-| Docling UI | http://localhost:5001/ui |
-| Embeddings | http://localhost:8081/v1/embeddings |
-| Edge TTS | http://localhost:5050/v1 |
-| Edge TTS voices | http://localhost:5050/v1/audio/voices |
-
-## How to use for writing & research
-
-1. **Build knowledge bases**: Upload your past emails, blog posts, social media content, or any documents via Open WebUI. They get chunked, embedded, and stored in Qdrant automatically.
-
-2. **Write in your style**: Reference your knowledge base in conversations. Ask the AI to draft emails or posts based on your uploaded writing samples.
-
-3. **Research**: Enable web fetch (`ENABLE_RAG_LOCAL_WEB_FETCH=true`, already set) to let the AI pull web content into your RAG pipeline during conversations.
-
-4. **Iterate**: Upload new documents anytime. The vector store grows with your knowledge.
-
-## Voice conversations (English practice)
-
-The stack includes text-to-speech (Edge TTS) and speech-to-text (Whisper) for hands-free voice conversations — great for practicing spoken English.
-
-**How to use:**
-
-1. Open http://localhost:3000 and start a chat.
-2. Click the **headphone icon** (top right of the chat) to enter **Voice Call Mode**.
-3. Speak naturally — Whisper transcribes your speech, the LLM responds, and Edge TTS reads the reply aloud.
-4. The call auto-listens after ~3 seconds of silence. Tap or speak to interrupt.
-
-**Changing the voice:**
-
-Browse available voices at http://localhost:5050/v1/audio/voices. To switch, update `AUDIO_TTS_VOICE` and `EDGE_TTS_DEFAULT_VOICE` in `.env`, then restart:
-
-```bash
-docker compose up -d
-```
-
-**If you see `401 UNAUTHORIZED` from `http://edge-tts:5050/v1/audio/speech`:**
-
-`travisvn/openai-edge-tts` requires a bearer token by default. Ensure these match in `.env`:
-
-- `AUDIO_TTS_OPENAI_API_KEY`
-- `EDGE_TTS_API_KEY`
-
-Then restart:
-
-```bash
-docker compose up -d edge-tts open-webui
-```
-
-Optional direct check:
-
-```bash
-curl -X POST http://localhost:5050/v1/audio/speech \
-  -H "Authorization: Bearer sk-edge-tts" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"tts-1","input":"Voice test","voice":"en-US-AndrewNeural"}' \
-  -o /tmp/voice-test.mp3
-```
-
-**STT note:** Whisper runs on CPU inside the Open WebUI container (no VRAM used). The `base` model is fast enough for real-time voice clips. Upgrade to `small` in `.env` (`WHISPER_MODEL=small`) if accuracy matters more than latency.
-
-**Open WebUI realtime call mode checks (if still silent):**
-
-1. Open chat settings and verify TTS engine is set to `openai`.
-2. Confirm TTS base URL is `http://edge-tts:5050/v1` and API key matches `.env`.
-3. Allow browser microphone access and autoplay for `http://localhost:3000`.
-4. In browser devtools, confirm `POST /api/v1/audio/speech` returns `200` (not `401/500`).
-
-## Supported document formats
-
-Docling (using the full base image) handles:
-
-| Format | Types |
-|--------|-------|
-| Office | PDF, DOCX, XLSX, PPTX |
-| Web | HTML, XHTML, Markdown |
-| Text | CSV, LaTeX, AsciiDoc |
-| Images | PNG, JPEG, TIFF, BMP, WEBP |
-| XML | USPTO patents, JATS articles, XBRL financial reports |
-
-**EPUB**: Convert to HTML first (e.g. `ebook-convert book.epub book.html` via Calibre), then upload the HTML.
-
-## Key `.env` knobs
-
-Most things work out of the box. These are the ones worth knowing:
-
-| Variable | Default | What it does |
-|----------|---------|-------------|
-| `LLAMA_N_GPU_LAYERS` | 20 | GPU layers offloaded. Lower if OOM. |
-| `LLAMA_MODELS_MAX` | 1 | Only one model loaded at a time. Old model is unloaded before the new one loads. |
-| `LLAMA_CACHE_RAM` | 1400 | Max model cache in MiB. Prevents VRAM exhaustion when switching models. |
-| `LLAMA_CONTEXT_SIZE` | 4096 | Context window. Lower to 2048 if tight on VRAM. |
-| `RAG_TOP_K` | 6 | How many chunks are retrieved per query. |
-| `CHUNK_SIZE` | 800 | Characters per chunk. |
-| `CHUNK_OVERLAP` | 150 | Overlap between chunks for context continuity. |
-| `RAG_HYBRID_BM25_WEIGHT` | 0.30 | Balance between keyword (BM25) and semantic search. |
-| `AUDIO_TTS_VOICE` | `en-US-AndrewNeural` | TTS voice. See localhost:5050/v1/audio/voices for options. |
-| `EDGE_TTS_API_KEY` | `sk-edge-tts` | Must match `AUDIO_TTS_OPENAI_API_KEY` to avoid TTS 401 errors. |
-| `WHISPER_MODEL` | `base` | STT model size. `tiny`/`base`/`small`/`medium`/`large`. |
-| `DOCLING_NUM_THREADS` | 6 | CPU threads for document processing. |
-
-## Managing llama.cpp
-
-```bash
-sudo systemctl status llama-cpp     # check status
-sudo journalctl -u llama-cpp -f     # live logs
-sudo systemctl restart llama-cpp    # restart after .env changes
-```
-
-After changing llama.cpp settings in `.env`, re-run the install script to update the systemd env:
-
-```bash
-sudo ./scripts/install-llama-systemd.sh
-```
-
-## Switching models
-
-All GGUF files in `~/models/` are automatically available in Open WebUI's model dropdown. Just pick a different model and start chatting -- llama.cpp's router will unload the old model and load the new one.
-
-`LLAMA_MODELS_MAX=1` ensures only one model is loaded at a time, so the old model's VRAM is freed before the new one loads. `LLAMA_CACHE_RAM=1400` caps the total model cache to ~1.4 GB to stay within the GTX 1650's budget (the embedding model takes ~1.3 GB).
-
-If a model switch hangs (rare, usually an OOM), restart the service:
-
-```bash
-sudo systemctl restart llama-cpp
-```
-
-## Stop
-
-```bash
-docker compose down
-```
+---
 
 ## Architecture
 
 ```
-Browser :3000
-    |
-Open WebUI (Docker)
-    |--- LLM ---------> llama.cpp (host :10000, GPU)
-    |--- Embeddings ---> TEI / Qwen3-0.6B (Docker :8081, GPU)
-    |--- Documents ----> Docling (Docker :5001, CPU)
-    |--- Vectors ------> Qdrant (Docker :6333)
-    |--- TTS ----------> Edge TTS (Docker :5050, CPU)
-    |--- STT ----------> Built-in Whisper (CPU, inside Open WebUI)
+┌────────────────────────────────────────────────────────────────────────┐
+│                   SLEEPING BEAUTY LOCAL HUB                            │
+├────────────────────────────────────────────────────────────────────────┤
+│  Web Dashboard :8000   │   Terminal CLI (./sb)   │  OpenAI Proxy /v1   │
+├────────────────────────┴─────────────────────────┴─────────────────────┤
+│                          CORE PYTHON ENGINE                            │
+│  ├── Document Ingest (Markdown, Code, TXT, PDF via PyMuPDF)            │
+│  ├── Header-Aware Semantic Chunking (350-450 tokens context budget)    │
+│  ├── EmbeddingGemma-2 (768d with MRL & task instruction prefixes)      │
+│  ├── LanceDB (In-process, Tantivy BM25 + Dense Vector Hybrid Search)   │
+│  └── Grounded Micro-RAG Engine (Strict XML delimiters, zero-halluc)    │
+├────────────────────────────────────────────────────────────────────────┤
+│                          LOCAL LLM RUNTIME                             │
+│  llama-server (Host GPU :10000)                                        │
+│  • Micro LLMs: Qwen 2.5 1.5B / DeepSeek-R1-1.5B / Gemma 2 2B           │
+│  • Built-in llama.cpp web UI also available at :10000                  │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Requirements
+### Why This Stack?
 
-- NVIDIA GPU with CUDA (tested on GTX 1650 4GB)
-- NVIDIA Container Toolkit (for GPU passthrough to Docker)
-- Docker with Compose
-- ~15GB disk for images + model weights
+1. **Zero Docker Overhead:** Replaced heavy containers (Docling, Qdrant, Open WebUI, Edge-TTS) with in-process, high-performance native libraries. Saves ~2GB of host RAM and eliminates container latency.
+2. **True Hybrid Search (BM25 + Vectors):** LanceDB embeds Tantivy full-text keyword search alongside dense vector ANN, fused with **Reciprocal Rank Fusion (RRF)**. Exact code symbols, names, and dates are retrieved alongside conceptual matches.
+3. **Optimized for 1–2B Micro LLMs:**
+   * Runs at **Q8_0 or FP16** with 100% GPU offload on a 4GB GTX 1650 (~80–120 tokens/sec).
+   * Strict context budgeting (Top 3–4 chunks, ~1,500 total tokens) prevents "lost in the middle" errors.
+   * Explicit XML `<context>` delimiters and low temperature (`0.05`) ensure strictly grounded answers with citations.
+4. **Any-Vault / Dynamic Ingestion:** Point to any folder or Obsidian vault at any time (`./sb index /path/to/vault` or via Web UI).
+
+---
+
+## Quick Start
+
+### 1. Requirements
+
+* Linux (x86_64)
+* NVIDIA GPU (tested on GTX 1650 4GB) with CUDA drivers
+* `uv` Python package manager
+
+### 2. Environment Setup
+
+```bash
+# Clone and enter repo
+cd Sleeping-Beauty
+
+# Setup dependencies (managed automatically via uv and ./sb)
+cp .env.example .env
+./sb --help
+```
+
+### 3. Download a 1–2B Micro Model
+
+Run the download script to fetch one of the recommended models:
+
+```bash
+# Top pick for fast RAG & code (Qwen 2.5 1.5B Instruct Q8_0):
+./scripts/download-hf-model.sh Qwen/Qwen2.5-1.5B-Instruct-GGUF \
+  --file qwen2.5-1.5b-instruct-q8_0.gguf
+
+# Or the micro reasoning model (DeepSeek-R1 Distill 1.5B with chain-of-thought):
+./scripts/download-hf-model.sh unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF \
+  --file DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf
+
+# Or Google Gemma 2 2B Instruct:
+./scripts/download-hf-model.sh bartowski/gemma-2-2b-it-GGUF \
+  --file gemma-2-2b-it-Q8_0.gguf
+```
+
+### 4. Build & Run llama-server
+
+If you haven't built `llama.cpp` yet:
+```bash
+./scripts/build-llama-cpp-gpu.sh
+```
+
+Run as a systemd service (or run directly):
+```bash
+sudo ./scripts/install-llama-systemd.sh
+```
+
+The `llama-server` is now live at `http://localhost:10000` (including its own built-in web UI).
+
+### 5. Start the Sleeping Beauty Dashboard
+
+```bash
+./sb serve
+```
+
+Open **`http://localhost:8000`** in your browser.
+
+---
+
+## CLI Usage
+
+### Index Any Directory or Vault
+```bash
+# Index an Obsidian vault or notes directory
+./sb index "/home/sapiens/Second Brain/Notes"
+
+# Index a code repository
+./sb index ~/Development/MyProject
+
+# Index with custom chunking
+./sb index ~/Documents/Papers --chunk-size 450 --overlap 90
+```
+
+### Hybrid Search (BM25 + Dense Vectors)
+```bash
+./sb search "vector projection FAISS"
+./sb search "Gemma 2 MRL embeddings" --top-k 5
+./sb search "nepali dictation" --vault "Notes"
+```
+
+### Ask Knowledge (RAG Q&A)
+```bash
+./sb ask "What is the core architecture of the Nepali dictation engine?"
+./sb ask "How does Matryoshka Representation Learning work in EmbeddingGemma?"
+```
+
+### View Stats
+```bash
+./sb stats
+```
+
+---
+
+## Web Dashboard Features (`http://localhost:8000`)
+
+* **Ask Knowledge (RAG):** Live streaming chat with source citations. Automatically renders `<think>...</think>` collapsible thought trees for reasoning models like DeepSeek-R1.
+* **Hybrid Search:** Live search bar showing similarity scores, file paths, and exact highlighted text snippets.
+* **Manage Vaults:** Ingest any directory path with progress feedback, view indexed collections, or delete collections.
+* **OpenAI-Compatible Proxy (`/v1/chat/completions`):** Connect external tools (Zed editor, Obsidian plugins, curl) directly to your augmented local knowledge base.
+
+---
+
+## Hardware Budget (Tuned for 4GB GTX 1650)
+
+| Component | VRAM Usage | Notes |
+| :--- | :--- | :--- |
+| `llama-server` (1.5B Q8_0) | ~1.6 GB | 100% layers offloaded to GPU (`-ngl 99`, `-fa on`) |
+| `EmbeddingGemma-2` | ~0.7 – 1.0 GB | Runs in FP16 on GPU (or auto-falls back to CPU) |
+| `LanceDB` + `Tantivy` | 0 GB VRAM | Runs in system RAM (sub-5ms retrieval) |
+| **Total VRAM Headroom** | **~1.4 GB free** | Safe margin for KV cache and OS display |

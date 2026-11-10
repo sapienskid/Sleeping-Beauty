@@ -38,11 +38,14 @@ Options:
   -h, --help              show this help
 
 Examples:
-  # after setting HF_TOKEN in .env
-  ./scripts/download-hf-model.sh bartowski/Llama-3.1-8B-Instruct-GGUF
-  # or pass token directly
-  HF_TOKEN=hf_xxx ./scripts/download-hf-model.sh bartowski/Llama-3.1-8B-Instruct-GGUF
-  ./scripts/download-hf-model.sh bartowski/Llama-3.1-8B-Instruct-GGUF --file Llama-3.1-8B-Instruct-Q4_K_M.gguf
+  # Download Qwen 2.5 1.5B Instruct (Top pick for fast RAG & code)
+  ./scripts/download-hf-model.sh Qwen/Qwen2.5-1.5B-Instruct-GGUF --file qwen2.5-1.5b-instruct-q8_0.gguf
+
+  # Download DeepSeek-R1 Distill 1.5B (Micro reasoning model with <think> blocks)
+  ./scripts/download-hf-model.sh unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF --file DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf
+
+  # Download Gemma 2 2B Instruct
+  ./scripts/download-hf-model.sh bartowski/gemma-2-2b-it-GGUF --file gemma-2-2b-it-Q8_0.gguf
 EOF
 }
 

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+VENV_DIR="${SCRIPT_DIR}/.venv"
+
+# Ensure venv exists
+if [[ ! -d "$VENV_DIR" ]]; then
+    echo "[sb] Creating virtual environment with uv..."
+    uv venv --python 3.12 "$VENV_DIR"
+    uv pip install -e "$SCRIPT_DIR"
+fi
+
+# Run CLI with virtualenv python
+exec "${VENV_DIR}/bin/python" -m src.cli "$@"

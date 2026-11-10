@@ -13,15 +13,15 @@ Environment=LLAMA_SERVER_BIN=/home/sapiens/llama.cpp/build-cuda/bin/llama-server
 Environment=LLAMA_HOST=0.0.0.0
 Environment=LLAMA_PORT=10000
 Environment=LLAMA_MODELS_DIR=/home/sapiens/models
-Environment=LLAMA_N_GPU_LAYERS=20
+Environment=LLAMA_N_GPU_LAYERS=99
 Environment=LLAMA_CONTEXT_SIZE=4096
 Environment=LLAMA_PARALLEL=1
-Environment=LLAMA_BATCH_SIZE=128
-Environment=LLAMA_UBATCH_SIZE=32
+Environment=LLAMA_BATCH_SIZE=512
+Environment=LLAMA_UBATCH_SIZE=64
 Environment=LLAMA_KV_CACHE_TYPE_K=q8_0
 Environment=LLAMA_KV_CACHE_TYPE_V=q8_0
 Environment=LLAMA_MODELS_MAX=1
-Environment=LLAMA_CACHE_RAM=1400
+Environment=LLAMA_CACHE_RAM=2048
 ExecStart=/usr/bin/bash -lc '\
   exec "$$LLAMA_SERVER_BIN" \
     --host "$$LLAMA_HOST" \
