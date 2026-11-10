@@ -224,16 +224,12 @@ async def proxy_streams_lookup(request: Request):
 
 @app.api_route("/tools", methods=["GET", "POST", "OPTIONS"])
 async def proxy_tools(request: Request):
-    url = f"{settings.LLAMA_SERVER_URL.rstrip('/v1')}/tools"
-    body = await request.body()
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        r = await client.request(request.method, url, content=body, headers={"Content-Type": "application/json"})
-        return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
+    return Response(content="[]", status_code=200, media_type="application/json")
 
 
 # --- OpenAI-Compatible Chat Completions with Streaming RAG ---
 @app.post("/v1/chat/completions")
-async def chat_completions(payload: dict):
+async def chat_completions(request: Request, payload: dict):
     """Augments standard OpenAI chat requests with local hybrid retrieval and streaming citations."""
     messages = payload.get("messages", [])
     if not messages:
@@ -271,7 +267,7 @@ async def chat_completions(payload: dict):
         cleaned_user_msg = re.sub(r"/vault:\w+", "", cleaned_user_msg, flags=re.IGNORECASE).strip()
 
     chunks = []
-    if rag_enabled and cleaned_user_msg.strip():
+    if rag_enabled and cleaned_user_msg.strip() and payload.get("n_predict") != 0:
         engine = RAGEngine()
         try:
             chunks = engine.retrieve(
@@ -307,11 +303,16 @@ async def chat_completions(payload: dict):
 
     endpoint = f"{settings.LLAMA_SERVER_URL.rstrip('/')}/chat/completions"
     headers = {"Authorization": f"Bearer {settings.LLAMA_API_KEY}"}
+    for h in ("x-conversation-id", "content-type"):
+        if h in request.headers:
+            headers[h] = request.headers[h]
 
     clean_payload = {
         k: v for k, v in payload.items()
         if k not in ("rag_enabled", "selected_vault", "disabled_vaults", "top_k", "include_sources")
     }
+    clean_payload.pop("tools", None)
+    clean_payload.pop("tool_choice", None)
 
     if payload.get("stream", False):
         async def stream_generator():

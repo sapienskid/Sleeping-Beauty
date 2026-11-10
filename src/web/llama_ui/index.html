@@ -203,10 +203,6 @@
 				gap: 3px;
 				z-index: 2147483647;
 			}
-			.sb-dropdown-menu.sb-dropup {
-				top: auto;
-				bottom: calc(100% + 8px);
-			}
 			.sb-dropdown-menu.show {
 				display: flex !important;
 			}
@@ -230,62 +226,6 @@
 				background: rgba(16, 185, 129, 0.08);
 			}
 
-			/* In-Chat Bar (Directly Above Prompt Textarea) */
-			.sb-chat-bar {
-				width: 100%;
-				margin-bottom: 8px;
-				display: block;
-				user-select: none;
-			}
-			.sb-chat-bar-inner {
-				display: flex;
-				align-items: center;
-				gap: 8px;
-				padding: 6px 10px;
-				background: rgba(24, 24, 27, 0.94);
-				border: 1px solid rgba(63, 63, 70, 0.7);
-				border-radius: 10px;
-				backdrop-filter: blur(12px);
-				-webkit-backdrop-filter: blur(12px);
-			}
-			.sb-chat-pill {
-				background: rgba(39, 39, 42, 0.85);
-				border: 1px solid rgba(63, 63, 70, 0.6);
-				color: #e4e4e7;
-				padding: 4px 11px;
-				border-radius: 7px;
-				font-size: 12px;
-				font-weight: 500;
-				cursor: pointer;
-				display: flex;
-				align-items: center;
-				gap: 6px;
-				transition: all 0.15s ease;
-			}
-			.sb-chat-pill:hover {
-				background: rgba(63, 63, 70, 0.9);
-				color: #fff;
-			}
-			.sb-chat-pill-active {
-				background: rgba(16, 185, 129, 0.18) !important;
-				border-color: rgba(16, 185, 129, 0.5) !important;
-				color: #34d399 !important;
-				font-weight: 600;
-			}
-			.sb-chat-pill-off {
-				background: rgba(39, 39, 42, 0.5) !important;
-				border-color: rgba(63, 63, 70, 0.4) !important;
-				color: #71717a !important;
-			}
-			.sb-chat-info-hint {
-				color: #71717a;
-				font-size: 11px;
-				margin-left: auto;
-				display: flex;
-				align-items: center;
-				gap: 6px;
-			}
-			
 			/* Slide-Over Drawer */
 			#sb-drawer-backdrop {
 				position: fixed !important;
@@ -501,7 +441,7 @@
 			}
 		</style>
 
-		<!-- Floating Top Toolbar -->
+		<!-- Floating Top Toolbar (Only Top Bar, Zero Emojis) -->
 		<div id="sb-rag-toolbar">
 			<button id="sb-rag-toggle" class="sb-btn sb-btn-active" type="button" title="Toggle RAG Retrieval Grounding">
 				<span class="sb-dot sb-dot-active" id="sb-rag-dot"></span>
@@ -604,14 +544,10 @@
 			</div>
 		</div>
 
-		<!-- Controller, Fetch Interceptor & Chat Injection -->
+		<!-- Controller & Transparent Fetch Interceptor -->
 		<script>
 			(function() {
-				// Icons
 				const SVG_FOLDER = '<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
-				const SVG_DATABASE = '<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>';
-				const SVG_SLIDERS = '<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>';
-				const SVG_CHEVRON = '<svg class="sb-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>';
 				const SVG_TRASH = '<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
 
 				// Global RAG State
@@ -624,11 +560,13 @@
 					vaults_data: []
 				};
 
-				// --- 1. Intercept Fetch for /v1/chat/completions ---
+				// Intercept Fetch for chat completions
 				const originalFetch = window.fetch;
 				window.fetch = async function(...args) {
-					const [resource, config] = args;
-					if (typeof resource === 'string' && resource.includes('/v1/chat/completions') && config && config.body) {
+					let [resource, config] = args;
+					let url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+
+					if (url.includes('chat/completions') && config && config.body && typeof config.body === 'string') {
 						try {
 							const body = JSON.parse(config.body);
 							body.rag_enabled = window.__RAG_CONFIG__.enabled;
@@ -636,15 +574,17 @@
 							body.disabled_vaults = Array.from(window.__RAG_CONFIG__.disabled_vaults);
 							body.top_k = window.__RAG_CONFIG__.top_k;
 							body.include_sources = window.__RAG_CONFIG__.include_sources;
+							delete body.tools;
+							delete body.tool_choice;
 							config.body = JSON.stringify(body);
 						} catch (e) {
-							console.warn('[Sleeping Beauty RAG] Error injecting parameters into fetch body:', e);
+							console.warn('[Sleeping Beauty RAG] Error augmenting body:', e);
 						}
 					}
 					return originalFetch.apply(this, args);
 				};
 
-				// --- 2. Top Toolbar Elements ---
+				// Top Toolbar Elements
 				const toggleBtn = document.getElementById('sb-rag-toggle');
 				const toggleDot = document.getElementById('sb-rag-dot');
 				const toggleLabel = document.getElementById('sb-rag-label');
@@ -668,15 +608,20 @@
 				const testSearchInput = document.getElementById('sb-test-search-input');
 				const testSearchResults = document.getElementById('sb-test-search-results');
 
-				// Toggle RAG helper
-				function setRAGEnabled(val) {
-					window.__RAG_CONFIG__.enabled = val;
-					syncUI();
+				function updateRAGUI() {
+					const isEnabled = window.__RAG_CONFIG__.enabled;
+					toggleBtn.className = isEnabled ? 'sb-btn sb-btn-active' : 'sb-btn sb-btn-off';
+					toggleDot.className = isEnabled ? 'sb-dot sb-dot-active' : 'sb-dot';
+					toggleLabel.textContent = isEnabled ? 'RAG: ON' : 'RAG: OFF';
 				}
 
 				function selectVault(vName) {
 					window.__RAG_CONFIG__.selected_vault = vName;
-					syncUI();
+					vaultLabel.textContent = vName === 'all' ? 'All Sources' : vName;
+					document.querySelectorAll('.sb-dropdown-item').forEach(el => {
+						if (el.getAttribute('data-vault') === vName) el.classList.add('selected');
+						else el.classList.remove('selected');
+					});
 				}
 
 				function openDrawer() {
@@ -690,142 +635,24 @@
 					drawerBackdrop.classList.remove('open');
 				}
 
-				// --- 3. Top Toolbar Handlers ---
-				toggleBtn.addEventListener('click', () => setRAGEnabled(!window.__RAG_CONFIG__.enabled));
+				toggleBtn.addEventListener('click', () => {
+					window.__RAG_CONFIG__.enabled = !window.__RAG_CONFIG__.enabled;
+					updateRAGUI();
+				});
+
 				vaultBtn.addEventListener('click', (e) => {
 					e.stopPropagation();
 					vaultMenu.classList.toggle('show');
 				});
+
 				manageBtn.addEventListener('click', openDrawer);
 				drawerClose.addEventListener('click', closeDrawer);
 				drawerBackdrop.addEventListener('click', closeDrawer);
 				document.addEventListener('click', () => {
 					if (vaultMenu) vaultMenu.classList.remove('show');
-					const chatMenu = document.getElementById('sb-chat-vault-menu');
-					if (chatMenu) chatMenu.classList.remove('show');
 				});
 
-				// --- 4. In-Chat Bar Injection & Binding ---
-				function injectChatBar() {
-					if (document.getElementById('sb-chat-bar')) return;
-					const textarea = document.querySelector('textarea');
-					if (!textarea) return;
-
-					// Locate insertion point
-					const container = textarea.closest('form') || textarea.closest('.flex-col') || textarea.parentElement;
-					if (!container) return;
-
-					const bar = document.createElement('div');
-					bar.id = 'sb-chat-bar';
-					bar.className = 'sb-chat-bar';
-					bar.innerHTML = `
-						<div class="sb-chat-bar-inner">
-							<button id="sb-chat-toggle" class="sb-chat-pill sb-chat-pill-active" type="button" title="Toggle RAG local retrieval grounding">
-								<span class="sb-dot sb-dot-active" id="sb-chat-dot"></span>
-								<span id="sb-chat-toggle-label">RAG: ON</span>
-							</button>
-							<div class="sb-dropdown-container">
-								<button id="sb-chat-vault-btn" class="sb-chat-pill" type="button" title="Select knowledge source vault">
-									${SVG_DATABASE}
-									<span id="sb-chat-vault-label">All Sources</span>
-									${SVG_CHEVRON}
-								</button>
-								<div id="sb-chat-vault-menu" class="sb-dropdown-menu sb-dropup">
-									<div class="sb-dropdown-item selected" data-vault="all">
-										<span style="display: flex; align-items: center; gap: 6px;">
-											${SVG_DATABASE} All Vaults
-										</span>
-										<span class="sb-total-chunks-badge" style="color: #71717a; font-size: 11px;">(4,138 chunks)</span>
-									</div>
-									<div id="sb-chat-vault-items"></div>
-								</div>
-							</div>
-							<button id="sb-chat-sources-btn" class="sb-chat-pill" type="button" title="Manage knowledge vaults">
-								${SVG_SLIDERS}
-								<span>Sources</span>
-							</button>
-							<span id="sb-chat-status-hint" class="sb-chat-info-hint">Hybrid Search &bull; LanceDB + BM25</span>
-						</div>
-					`;
-
-					container.insertBefore(bar, container.firstChild);
-
-					// In-chat event bindings
-					const chatToggle = bar.querySelector('#sb-chat-toggle');
-					const chatVaultBtn = bar.querySelector('#sb-chat-vault-btn');
-					const chatVaultMenu = bar.querySelector('#sb-chat-vault-menu');
-					const chatSourcesBtn = bar.querySelector('#sb-chat-sources-btn');
-
-					chatToggle.addEventListener('click', (e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						setRAGEnabled(!window.__RAG_CONFIG__.enabled);
-					});
-
-					chatVaultBtn.addEventListener('click', (e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						chatVaultMenu.classList.toggle('show');
-					});
-
-					chatSourcesBtn.addEventListener('click', (e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						openDrawer();
-					});
-
-					const chatAllItem = chatVaultMenu.querySelector('[data-vault="all"]');
-					if (chatAllItem) {
-						chatAllItem.onclick = (e) => {
-							e.stopPropagation();
-							selectVault('all');
-							chatVaultMenu.classList.remove('show');
-						};
-					}
-
-					renderVaultDropdowns();
-					syncUI();
-				}
-
-				// Synchronize state across all elements
-				function syncUI() {
-					const isEnabled = window.__RAG_CONFIG__.enabled;
-					const selVault = window.__RAG_CONFIG__.selected_vault;
-					const vaultText = selVault === 'all' ? 'All Sources' : selVault;
-
-					// Top bar sync
-					if (toggleBtn) {
-						toggleBtn.className = isEnabled ? 'sb-btn sb-btn-active' : 'sb-btn sb-btn-off';
-						toggleDot.className = isEnabled ? 'sb-dot sb-dot-active' : 'sb-dot';
-						toggleLabel.textContent = isEnabled ? 'RAG: ON' : 'RAG: OFF';
-					}
-					if (vaultLabel) vaultLabel.textContent = vaultText;
-
-					// In-chat bar sync
-					const chatToggle = document.getElementById('sb-chat-toggle');
-					const chatDot = document.getElementById('sb-chat-dot');
-					const chatLabel = document.getElementById('sb-chat-toggle-label');
-					const chatVaultLabel = document.getElementById('sb-chat-vault-label');
-
-					if (chatToggle) {
-						chatToggle.className = isEnabled ? 'sb-chat-pill sb-chat-pill-active' : 'sb-chat-pill sb-chat-pill-off';
-						if (chatDot) chatDot.className = isEnabled ? 'sb-dot sb-dot-active' : 'sb-dot';
-						if (chatLabel) chatLabel.textContent = isEnabled ? 'RAG: ON' : 'RAG: OFF';
-					}
-					if (chatVaultLabel) chatVaultLabel.textContent = vaultText;
-
-					// Dropdown selections
-					document.querySelectorAll('.sb-dropdown-item').forEach(el => {
-						const v = el.getAttribute('data-vault');
-						if (v === selVault) {
-							el.classList.add('selected');
-						} else {
-							el.classList.remove('selected');
-						}
-					});
-				}
-
-				// --- 5. Fetch Vault Stats & Update UI ---
+				// Fetch Vault Stats
 				async function loadVaultStats() {
 					try {
 						const res = await originalFetch('/api/stats');
@@ -837,20 +664,16 @@
 					}
 				}
 
-				function renderVaultDropdowns() {
-					const data = { vaults: window.__RAG_CONFIG__.vaults_data };
-					const topItems = document.getElementById('sb-vault-items');
-					const chatItems = document.getElementById('sb-chat-vault-items');
+				function renderVaults(data) {
+					document.querySelectorAll('.sb-total-chunks-badge').forEach(b => {
+						b.textContent = `(${data.total_chunks.toLocaleString()} chunks)`;
+					});
 
-					if (topItems) topItems.innerHTML = '';
-					if (chatItems) chatItems.innerHTML = '';
-
-					data.vaults.forEach(v => {
-						const isSel = window.__RAG_CONFIG__.selected_vault === v.vault_name;
-
-						// Top item
-						if (topItems) {
+					if (vaultItems) {
+						vaultItems.innerHTML = '';
+						data.vaults.forEach(v => {
 							const item = document.createElement('div');
+							const isSel = window.__RAG_CONFIG__.selected_vault === v.vault_name;
 							item.className = 'sb-dropdown-item' + (isSel ? ' selected' : '');
 							item.setAttribute('data-vault', v.vault_name);
 							item.innerHTML = `<span style="display:flex; align-items:center; gap:6px;">${SVG_FOLDER} ${v.vault_name}</span><span style="color: #71717a; font-size: 11px;">(${v.total_chunks} chunks)</span>`;
@@ -859,34 +682,10 @@
 								selectVault(v.vault_name);
 								vaultMenu.classList.remove('show');
 							};
-							topItems.appendChild(item);
-						}
+							vaultItems.appendChild(item);
+						});
+					}
 
-						// Chat item
-						if (chatItems) {
-							const item2 = document.createElement('div');
-							item2.className = 'sb-dropdown-item' + (isSel ? ' selected' : '');
-							item2.setAttribute('data-vault', v.vault_name);
-							item2.innerHTML = `<span style="display:flex; align-items:center; gap:6px;">${SVG_FOLDER} ${v.vault_name}</span><span style="color: #71717a; font-size: 11px;">(${v.total_chunks} chunks)</span>`;
-							item2.onclick = (e) => {
-								e.stopPropagation();
-								selectVault(v.vault_name);
-								const cm = document.getElementById('sb-chat-vault-menu');
-								if (cm) cm.classList.remove('show');
-							};
-							chatItems.appendChild(item2);
-						}
-					});
-				}
-
-				function renderVaults(data) {
-					document.querySelectorAll('.sb-total-chunks-badge').forEach(b => {
-						b.textContent = `(${data.total_chunks.toLocaleString()} chunks)`;
-					});
-
-					renderVaultDropdowns();
-
-					// Top All Vaults item click
 					const allItem = vaultMenu.querySelector('[data-vault="all"]');
 					if (allItem) {
 						allItem.onclick = (e) => {
@@ -896,7 +695,6 @@
 						};
 					}
 
-					// Render Drawer Vaults List
 					if (!data.vaults || data.vaults.length === 0) {
 						vaultList.innerHTML = '<div style="color: #71717a; font-size: 13px;">No vaults indexed yet. Add one below.</div>';
 						return;
@@ -934,25 +732,18 @@
 							</div>
 						`;
 
-						// Vault enable/disable toggle
 						const toggleInput = card.querySelector('.sb-vault-toggle');
 						toggleInput.addEventListener('change', (e) => {
-							if (e.target.checked) {
-								window.__RAG_CONFIG__.disabled_vaults.delete(v.vault_name);
-							} else {
-								window.__RAG_CONFIG__.disabled_vaults.add(v.vault_name);
-							}
+							if (e.target.checked) window.__RAG_CONFIG__.disabled_vaults.delete(v.vault_name);
+							else window.__RAG_CONFIG__.disabled_vaults.add(v.vault_name);
 						});
 
-						// Delete vault button
 						const delBtn = card.querySelector('.sb-delete-vault-btn');
 						delBtn.addEventListener('click', async () => {
 							if (confirm(`Remove vault "${v.vault_name}" from index?`)) {
 								try {
 									const res = await originalFetch(`/api/vaults/${encodeURIComponent(v.vault_name)}`, { method: 'DELETE' });
-									if (res.ok) {
-										loadVaultStats();
-									}
+									if (res.ok) loadVaultStats();
 								} catch (err) {
 									alert('Failed to delete vault: ' + err.message);
 								}
@@ -963,7 +754,7 @@
 					});
 				}
 
-				// --- 6. Index New Vault Handler ---
+				// Index New Vault
 				indexBtn.addEventListener('click', async () => {
 					const path = newVaultPath.value.trim();
 					if (!path) return;
@@ -998,7 +789,6 @@
 					}
 				});
 
-				// --- 7. Sliders & Settings ---
 				topkSlider.addEventListener('input', (e) => {
 					const val = parseInt(e.target.value);
 					topkVal.textContent = val;
@@ -1009,7 +799,7 @@
 					window.__RAG_CONFIG__.include_sources = e.target.checked;
 				});
 
-				// --- 8. Test Search ---
+				// Test Search
 				let searchTimeout = null;
 				testSearchInput.addEventListener('input', (e) => {
 					clearTimeout(searchTimeout);
@@ -1037,10 +827,6 @@
 					}, 250);
 				});
 
-				// Recurring injection check (attaches in-chat bar whenever textarea mounts)
-				setInterval(injectChatBar, 350);
-
-				// Initial stats load
 				loadVaultStats();
 			})();
 		</script>
