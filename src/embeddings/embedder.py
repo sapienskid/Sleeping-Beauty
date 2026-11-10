@@ -23,11 +23,16 @@ class GemmaEmbedder:
         self.server_url = (server_url or settings.EMBEDDING_SERVER_URL or "").rstrip("/")
         self.use_server = False
         self.model = None
+        self._headers = (
+            {"Authorization": f"Bearer {settings.LLAMA_API_KEY}"}
+            if settings.LLAMA_API_KEY
+            else {}
+        )
 
         # Check if llama.cpp embedding server is active
         if self.server_url:
             try:
-                r = httpx.get(f"{self.server_url}/models", timeout=1.5)
+                r = httpx.get(f"{self.server_url}/models", headers=self._headers, timeout=1.5)
                 if r.status_code == 200:
                     self.use_server = True
                     self.raw_dim = settings.EMBEDDING_DIM
@@ -89,7 +94,7 @@ class GemmaEmbedder:
                 for i in range(0, len(prefixed), bs):
                     batch = prefixed[i : i + bs]
                     payload = {"input": batch, "model": "default"}
-                    resp = client.post(f"{self.server_url}/embeddings", json=payload)
+                    resp = client.post(f"{self.server_url}/embeddings", json=payload, headers=self._headers)
                     resp.raise_for_status()
                     data = resp.json()
                     # Sort by index to maintain ordering
@@ -125,6 +130,7 @@ class GemmaEmbedder:
                 resp = client.post(
                     f"{self.server_url}/embeddings",
                     json={"input": [prefixed], "model": "default"},
+                    headers=self._headers,
                 )
                 resp.raise_for_status()
                 vec = resp.json()["data"][0]["embedding"]

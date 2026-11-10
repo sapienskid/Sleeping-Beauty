@@ -75,27 +75,32 @@ Run the download script to fetch one of the recommended models:
   --file gemma-2-2b-it-Q8_0.gguf
 ```
 
-### 4. Build & Run llama-server
+### 4. Build & Run as Systemd Daemon
 
 If you haven't built `llama.cpp` yet:
 ```bash
 ./scripts/build-llama-cpp-gpu.sh
 ```
 
-Run as a systemd service (or run directly):
+Install and start all three Sleeping Beauty services (`sleeping-beauty-llm` on `:10000`, `sleeping-beauty-embed` on `:10001`, and `sleeping-beauty` on `:8000`) via systemd:
 ```bash
-sudo ./scripts/install-llama-systemd.sh
+# Recommended: user systemd services (no sudo required)
+./scripts/install-systemd.sh
+
+# Or system-wide services (/etc/systemd/system)
+# sudo ./scripts/install-systemd.sh --system
 ```
 
-The `llama-server` is now live at `http://localhost:10000` (including its own built-in web UI).
-
-### 5. Start the Sleeping Beauty Dashboard
-
+Manage the daemon cleanly with `systemctl`:
 ```bash
-./sb serve
+systemctl --user start sleeping-beauty
+systemctl --user stop sleeping-beauty
+systemctl --user restart sleeping-beauty
+systemctl --user status sleeping-beauty sleeping-beauty-llm sleeping-beauty-embed
+journalctl --user -u sleeping-beauty -u sleeping-beauty-llm -u sleeping-beauty-embed -f
 ```
 
-Open **`http://localhost:8000`** in your browser.
+Open **`http://localhost:8000`** in your browser (or run manually in foreground with `./sb start-all && ./sb serve`).
 
 ---
 

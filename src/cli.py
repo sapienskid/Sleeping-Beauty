@@ -195,7 +195,7 @@ def start_llm():
         pass
 
     bin_path = settings.LLAMA_SERVER_BIN
-    model_path = Path(settings.MODELS_DIR) / "qwen2.5-1.5b-instruct-q8_0.gguf"
+    model_path = settings.LLM_GGUF_PATH
     if not model_path.exists():
         console.print(f"[red]Error: Model not found at {model_path}[/red]")
         return

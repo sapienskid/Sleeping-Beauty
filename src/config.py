@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     ]
 
     # Local LLM Backend (llama-server running on host GPU :10000)
+    MODELS_DIR: Path = Path("/home/sapiens/models")
+    LLAMA_SERVER_BIN: Path = Path("/home/sapiens/llama.cpp/build-cuda/bin/llama-server")
+    LLM_GGUF_PATH: Path = Path("/home/sapiens/models/qwen2.5-1.5b-instruct-q8_0.gguf")
     LLAMA_SERVER_URL: str = "http://127.0.0.1:10000/v1"
     LLAMA_API_KEY: str = "sk-local"
     LLM_MODEL_NAME: str = "default"
