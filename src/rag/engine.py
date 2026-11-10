@@ -45,8 +45,16 @@ class RAGEngine:
         temperature: Optional[float] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Stream response tokens from llama-server alongside retrieved sources."""
-        # 1. Retrieve relevant chunks
-        chunks = self.retrieve(query, top_k=top_k, vault_name=vault_name, disabled_vaults=disabled_vaults)
+        import asyncio
+
+        # 1. Retrieve relevant chunks off the event loop
+        chunks = await asyncio.to_thread(
+            self.retrieve,
+            query,
+            top_k=top_k,
+            vault_name=vault_name,
+            disabled_vaults=disabled_vaults,
+        )
 
         # First yield the retrieved sources metadata
         yield {
@@ -116,7 +124,15 @@ class RAGEngine:
         temperature: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Synchronous/blocking complete answer generation with sources."""
-        chunks = self.retrieve(query, top_k=top_k, vault_name=vault_name, disabled_vaults=disabled_vaults)
+        import asyncio
+
+        chunks = await asyncio.to_thread(
+            self.retrieve,
+            query,
+            top_k=top_k,
+            vault_name=vault_name,
+            disabled_vaults=disabled_vaults,
+        )
         messages = build_chat_messages(query, chunks)
 
         payload = {

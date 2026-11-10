@@ -1,19 +1,11 @@
-// Sleeping Beauty - Service Worker Cache Buster & Uninstaller
-self.addEventListener('install', (event) => {
+// Sleeping Beauty - Inert Pass-Through Service Worker
+// Clears stale Workbox precache storages cleanly without intercepting fetch requests.
+self.addEventListener('install', () => {
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((keys) => {
-            return Promise.all(keys.map((key) => caches.delete(key)));
-        }).then(() => self.clients.claim()).then(() => {
-            return self.registration.unregister();
-        })
+        caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
     );
-});
-
-// Always bypass cache and fetch directly from network
-self.addEventListener('fetch', (event) => {
-    event.respondWith(fetch(event.request));
 });

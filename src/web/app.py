@@ -188,9 +188,27 @@ async def ask_stream(req: AskRequest):
 
 
 # --- llama.cpp Server Proxy Endpoints (Required by llama.cpp UI) ---
+def _llama_v1_url() -> str:
+    return settings.LLAMA_SERVER_URL.rstrip("/")
+
+
+def _llama_root_url() -> str:
+    base = _llama_v1_url()
+    return base[:-3] if base.endswith("/v1") else base
+
+
+def _forward_headers(request: Request) -> dict:
+    headers = {"Authorization": f"Bearer {settings.LLAMA_API_KEY}"}
+    for h in ("x-conversation-id", "content-type"):
+        if h in request.headers:
+            headers[h] = request.headers[h]
+    return headers
+
+
 @app.get("/props")
-async def proxy_props():
-    url = f"{settings.LLAMA_SERVER_URL.rstrip('/v1')}/props"
+async def proxy_props(request: Request):
+    qs = f"?{request.url.query}" if request.url.query else ""
+    url = f"{_llama_root_url()}/props{qs}"
     async with httpx.AsyncClient(timeout=10.0) as client:
         r = await client.get(url)
         return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
@@ -199,15 +217,16 @@ async def proxy_props():
 @app.get("/models")
 @app.get("/v1/models")
 async def proxy_models():
-    url = f"{settings.LLAMA_SERVER_URL.rstrip('/')}/models"
+    url = f"{_llama_v1_url()}/models"
     async with httpx.AsyncClient(timeout=10.0) as client:
         r = await client.get(url)
         return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
 
 
 @app.get("/slots")
-async def proxy_slots():
-    url = f"{settings.LLAMA_SERVER_URL.rstrip('/v1')}/slots"
+async def proxy_slots(request: Request):
+    qs = f"?{request.url.query}" if request.url.query else ""
+    url = f"{_llama_root_url()}/slots{qs}"
     async with httpx.AsyncClient(timeout=10.0) as client:
         r = await client.get(url)
         return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
@@ -215,16 +234,72 @@ async def proxy_slots():
 
 @app.api_route("/v1/streams/lookup", methods=["GET", "POST", "OPTIONS"])
 async def proxy_streams_lookup(request: Request):
-    url = f"{settings.LLAMA_SERVER_URL.rstrip('/v1')}/v1/streams/lookup"
+    url = f"{_llama_root_url()}/v1/streams/lookup"
     body = await request.body()
     async with httpx.AsyncClient(timeout=10.0) as client:
-        r = await client.request(request.method, url, content=body, headers={"Content-Type": "application/json"})
+        r = await client.request(request.method, url, content=body, headers=_forward_headers(request))
+        return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
+
+
+@app.api_route("/v1/stream", methods=["GET", "DELETE", "OPTIONS"])
+async def proxy_stream(request: Request):
+    qs = f"?{request.url.query}" if request.url.query else ""
+    url = f"{_llama_root_url()}/v1/stream{qs}"
+    headers = _forward_headers(request)
+
+    if request.method == "DELETE":
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.delete(url, headers=headers)
+            if r.status_code == 204:
+                return Response(status_code=204)
+            return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
+
+    client = httpx.AsyncClient(timeout=120.0)
+    try:
+        req = client.build_request(request.method, url, headers=headers)
+        r = await client.send(req, stream=True)
+    except Exception:
+        await client.aclose()
+        raise
+
+    ctype = r.headers.get("content-type", "")
+    if r.status_code != 200 or "text/event-stream" not in ctype:
+        body = await r.aread()
+        await r.aclose()
+        await client.aclose()
+        if r.status_code == 204:
+            return Response(status_code=204)
+        return Response(content=body, status_code=r.status_code, media_type=ctype or "application/json")
+
+    async def _stream_sse():
+        try:
+            async for chunk in r.aiter_raw():
+                yield chunk
+        finally:
+            await r.aclose()
+            await client.aclose()
+
+    return StreamingResponse(_stream_sse(), status_code=r.status_code, media_type="text/event-stream")
+
+
+@app.api_route("/v1/chat/completions/control", methods=["POST", "OPTIONS"])
+async def proxy_completions_control(request: Request):
+    url = f"{_llama_root_url()}/v1/chat/completions/control"
+    body = await request.body()
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        r = await client.post(url, content=body, headers=_forward_headers(request))
+        if r.status_code == 204:
+            return Response(status_code=204)
         return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
 
 
 @app.api_route("/tools", methods=["GET", "POST", "OPTIONS"])
 async def proxy_tools(request: Request):
-    return Response(content="[]", status_code=200, media_type="application/json")
+    return Response(
+        content='{"error":{"message":"Server tools are disabled"}}',
+        status_code=403,
+        media_type="application/json",
+    )
 
 
 # --- OpenAI-Compatible Chat Completions with Streaming RAG ---
@@ -268,14 +343,17 @@ async def chat_completions(request: Request, payload: dict):
 
     chunks = []
     if rag_enabled and cleaned_user_msg.strip() and payload.get("n_predict") != 0:
-        engine = RAGEngine()
-        try:
-            chunks = engine.retrieve(
+        def _retrieve_sync():
+            engine = RAGEngine()
+            return engine.retrieve(
                 cleaned_user_msg,
                 top_k=top_k,
                 vault_name=selected_vault if selected_vault != "all" else None,
                 disabled_vaults=disabled_vaults,
             )
+
+        try:
+            chunks = await asyncio.to_thread(_retrieve_sync)
         except Exception as e:
             print(f"Retrieval notice: {e}")
 
@@ -301,7 +379,7 @@ async def chat_completions(request: Request, payload: dict):
             new_messages.append({"role": "user", "content": cleaned_user_msg})
             payload["messages"] = new_messages
 
-    endpoint = f"{settings.LLAMA_SERVER_URL.rstrip('/')}/chat/completions"
+    endpoint = f"{_llama_v1_url()}/chat/completions"
     headers = {"Authorization": f"Bearer {settings.LLAMA_API_KEY}"}
     for h in ("x-conversation-id", "content-type"):
         if h in request.headers:
@@ -315,32 +393,55 @@ async def chat_completions(request: Request, payload: dict):
     clean_payload.pop("tool_choice", None)
 
     if payload.get("stream", False):
+        client = httpx.AsyncClient(timeout=120.0)
+        try:
+            req = client.build_request("POST", endpoint, json=clean_payload, headers=headers)
+            response = await client.send(req, stream=True)
+        except Exception:
+            await client.aclose()
+            raise
+
+        if response.status_code != 200:
+            err_body = await response.aread()
+            err_ctype = response.headers.get("content-type", "application/json")
+            await response.aclose()
+            await client.aclose()
+            return Response(content=err_body, status_code=response.status_code, media_type=err_ctype)
+
         async def stream_generator():
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                async with client.stream("POST", endpoint, json=clean_payload, headers=headers) as response:
-                    async for line in response.aiter_lines():
-                        if not line:
-                            continue
-                        if line.startswith("data: [DONE]"):
-                            if chunks and payload.get("include_sources", True):
-                                citations = "\n\n---\n**Sources & Citations:**\n"
-                                for idx, c in enumerate(chunks, 1):
-                                    rel = c.get("relative_path", "")
-                                    sec = f" > {c.get('section')}" if c.get("section") else ""
-                                    citations += f"- [{idx}] `{rel}{sec}`\n"
-                                citation_chunk = {
-                                    "choices": [{"delta": {"content": citations}, "index": 0}],
-                                    "object": "chat.completion.chunk",
-                                }
-                                yield f"data: {json.dumps(citation_chunk)}\n\n"
-                            yield "data: [DONE]\n\n"
-                            break
-                        yield f"{line}\n\n"
+            try:
+                async for line in response.aiter_lines():
+                    if not line:
+                        continue
+                    if line.startswith("data: [DONE]"):
+                        if chunks and payload.get("include_sources", True):
+                            citations = "\n\n---\n**Sources & Citations:**\n"
+                            for idx, c in enumerate(chunks, 1):
+                                rel = c.get("relative_path", "")
+                                sec = f" > {c.get('section')}" if c.get("section") else ""
+                                citations += f"- [{idx}] `{rel}{sec}`\n"
+                            citation_chunk = {
+                                "choices": [{"delta": {"content": citations}, "index": 0}],
+                                "object": "chat.completion.chunk",
+                            }
+                            yield f"data: {json.dumps(citation_chunk)}\n\n"
+                        yield "data: [DONE]\n\n"
+                        break
+                    yield f"{line}\n\n"
+            finally:
+                await response.aclose()
+                await client.aclose()
 
         return StreamingResponse(stream_generator(), media_type="text/event-stream")
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(endpoint, json=clean_payload, headers=headers)
+        if resp.status_code != 200:
+            return Response(
+                content=resp.content,
+                status_code=resp.status_code,
+                media_type=resp.headers.get("content-type", "application/json"),
+            )
         data = resp.json()
         if chunks and payload.get("include_sources", True) and "choices" in data and len(data["choices"]) > 0:
             citations = "\n\n---\n**Sources & Citations:**\n"

@@ -72,27 +72,8 @@
 		<link rel="apple-touch-startup-image" media="screen and (device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" href="./apple-splash-portrait-dark-640x1136.png">
 		<link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" href="./apple-splash-portrait-dark-750x1334.png">
 		
-		<!-- Service Worker Cache Purge & Buster -->
+		<!-- Purge stale CacheStorage without racing SW registration -->
 		<script>
-			if ('serviceWorker' in navigator) {
-				navigator.serviceWorker.getRegistrations().then(function(regs) {
-					for (var r of regs) r.unregister();
-				});
-			}
-			if ('caches' in window) {
-				caches.keys().then(function(keys) {
-					for (var k of keys) caches.delete(k);
-				});
-			}
-		</script>
-		
-		<!-- Purge Service Worker and CacheStorage -->
-		<script>
-			if ('serviceWorker' in navigator) {
-				navigator.serviceWorker.getRegistrations().then(function(regs) {
-					for (var r of regs) r.unregister();
-				});
-			}
 			if ('caches' in window) {
 				caches.keys().then(function(keys) {
 					for (var k of keys) caches.delete(k);
@@ -550,23 +531,50 @@
 				const SVG_FOLDER = '<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
 				const SVG_TRASH = '<svg class="sb-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
 
+				const STORAGE_KEY = 'sb.rag.config';
+
+				function loadSavedRagState() {
+					try {
+						const raw = localStorage.getItem(STORAGE_KEY);
+						if (!raw) return {};
+						const parsed = JSON.parse(raw);
+						return parsed && typeof parsed === 'object' ? parsed : {};
+					} catch (e) {
+						return {};
+					}
+				}
+
+				function saveRagState() {
+					try {
+						localStorage.setItem(STORAGE_KEY, JSON.stringify({
+							enabled: window.__RAG_CONFIG__.enabled,
+							selected_vault: window.__RAG_CONFIG__.selected_vault,
+							disabled_vaults: Array.from(window.__RAG_CONFIG__.disabled_vaults),
+							top_k: window.__RAG_CONFIG__.top_k,
+							include_sources: window.__RAG_CONFIG__.include_sources
+						}));
+					} catch (e) {}
+				}
+
+				const savedState = loadSavedRagState();
+
 				// Global RAG State
 				window.__RAG_CONFIG__ = {
-					enabled: true,
-					selected_vault: 'all',
-					disabled_vaults: new Set(),
-					top_k: 4,
-					include_sources: true,
+					enabled: typeof savedState.enabled === 'boolean' ? savedState.enabled : true,
+					selected_vault: typeof savedState.selected_vault === 'string' ? savedState.selected_vault : 'all',
+					disabled_vaults: new Set(Array.isArray(savedState.disabled_vaults) ? savedState.disabled_vaults : []),
+					top_k: typeof savedState.top_k === 'number' ? savedState.top_k : 4,
+					include_sources: typeof savedState.include_sources === 'boolean' ? savedState.include_sources : true,
 					vaults_data: []
 				};
 
 				// Intercept Fetch for chat completions
-				const originalFetch = window.fetch;
+				const originalFetch = window.fetch.bind(window);
 				window.fetch = async function(...args) {
 					let [resource, config] = args;
 					let url = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
 
-					if (url.includes('chat/completions') && config && config.body && typeof config.body === 'string') {
+					if (url.includes('chat/completions') && !url.includes('completions/control') && config && config.body && typeof config.body === 'string') {
 						try {
 							const body = JSON.parse(config.body);
 							body.rag_enabled = window.__RAG_CONFIG__.enabled;
@@ -581,7 +589,7 @@
 							console.warn('[Sleeping Beauty RAG] Error augmenting body:', e);
 						}
 					}
-					return originalFetch.apply(this, args);
+					return originalFetch.apply(window, args);
 				};
 
 				// Top Toolbar Elements
@@ -637,6 +645,7 @@
 
 				toggleBtn.addEventListener('click', () => {
 					window.__RAG_CONFIG__.enabled = !window.__RAG_CONFIG__.enabled;
+					saveRagState();
 					updateRAGUI();
 				});
 
@@ -680,6 +689,7 @@
 							item.onclick = (e) => {
 								e.stopPropagation();
 								selectVault(v.vault_name);
+								saveRagState();
 								vaultMenu.classList.remove('show');
 							};
 							vaultItems.appendChild(item);
@@ -691,6 +701,7 @@
 						allItem.onclick = (e) => {
 							e.stopPropagation();
 							selectVault('all');
+							saveRagState();
 							vaultMenu.classList.remove('show');
 						};
 					}
@@ -736,6 +747,7 @@
 						toggleInput.addEventListener('change', (e) => {
 							if (e.target.checked) window.__RAG_CONFIG__.disabled_vaults.delete(v.vault_name);
 							else window.__RAG_CONFIG__.disabled_vaults.add(v.vault_name);
+							saveRagState();
 						});
 
 						const delBtn = card.querySelector('.sb-delete-vault-btn');
@@ -793,10 +805,12 @@
 					const val = parseInt(e.target.value);
 					topkVal.textContent = val;
 					window.__RAG_CONFIG__.top_k = val;
+					saveRagState();
 				});
 
 				citationsToggle.addEventListener('change', (e) => {
 					window.__RAG_CONFIG__.include_sources = e.target.checked;
+					saveRagState();
 				});
 
 				// Test Search
@@ -826,6 +840,12 @@
 						} catch (err) {}
 					}, 250);
 				});
+
+				updateRAGUI();
+				selectVault(window.__RAG_CONFIG__.selected_vault);
+				topkSlider.value = String(window.__RAG_CONFIG__.top_k);
+				topkVal.textContent = String(window.__RAG_CONFIG__.top_k);
+				citationsToggle.checked = window.__RAG_CONFIG__.include_sources;
 
 				loadVaultStats();
 			})();

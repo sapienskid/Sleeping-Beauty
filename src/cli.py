@@ -306,18 +306,46 @@ def serve(
     reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development"),
 ):
     """Start the Sleeping Beauty Web Dashboard & API server."""
+    import socket
     import uvicorn
 
     console.print(
         Panel.fit(
             f"[bold green]Starting Sleeping Beauty Hub[/bold green]\n"
-            f"Web Dashboard: [bold cyan]http://{host}:{port}[/bold cyan]\n"
-            f"API Docs:      [dim]http://{host}:{port}/docs[/dim]\n"
+            f"Web Dashboard: [bold cyan]http://localhost:{port}[/bold cyan]\n"
+            f"API Docs:      [dim]http://localhost:{port}/docs[/dim]\n"
             f"LLM Endpoint:  [dim]{settings.LLAMA_SERVER_URL}[/dim]",
             title="Server Online",
             border_style="green",
         )
     )
+    if not reload and host in ("0.0.0.0", "::"):
+        sockets = []
+        try:
+            s4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s4.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s4.bind(("0.0.0.0", port))
+            s4.listen(2048)
+            s4.setblocking(False)
+            sockets.append(s4)
+        except OSError:
+            pass
+        try:
+            s6 = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+            s6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s6.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+            s6.bind(("::", port))
+            s6.listen(2048)
+            s6.setblocking(False)
+            sockets.append(s6)
+        except OSError:
+            pass
+        if sockets:
+            config = uvicorn.Config("src.web.app:app", host=host, port=port)
+            server = uvicorn.Server(config)
+            server.run(sockets=sockets)
+            return
+
     uvicorn.run("src.web.app:app", host=host, port=port, reload=reload)
 
 
