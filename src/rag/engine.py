@@ -22,6 +22,7 @@ class RAGEngine:
         query: str,
         top_k: Optional[int] = None,
         vault_name: Optional[str] = None,
+        disabled_vaults: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """Run hybrid semantic & keyword search for the query."""
         k = top_k or settings.RAG_TOP_K
@@ -31,6 +32,7 @@ class RAGEngine:
             query_vector=query_vector,
             top_k=k,
             vault_name=vault_name,
+            disabled_vaults=disabled_vaults,
         )
         return results
 
@@ -39,11 +41,12 @@ class RAGEngine:
         query: str,
         top_k: Optional[int] = None,
         vault_name: Optional[str] = None,
+        disabled_vaults: Optional[List[str]] = None,
         temperature: Optional[float] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Stream response tokens from llama-server alongside retrieved sources."""
         # 1. Retrieve relevant chunks
-        chunks = self.retrieve(query, top_k=top_k, vault_name=vault_name)
+        chunks = self.retrieve(query, top_k=top_k, vault_name=vault_name, disabled_vaults=disabled_vaults)
 
         # First yield the retrieved sources metadata
         yield {
@@ -109,10 +112,11 @@ class RAGEngine:
         query: str,
         top_k: Optional[int] = None,
         vault_name: Optional[str] = None,
+        disabled_vaults: Optional[List[str]] = None,
         temperature: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Synchronous/blocking complete answer generation with sources."""
-        chunks = self.retrieve(query, top_k=top_k, vault_name=vault_name)
+        chunks = self.retrieve(query, top_k=top_k, vault_name=vault_name, disabled_vaults=disabled_vaults)
         messages = build_chat_messages(query, chunks)
 
         payload = {

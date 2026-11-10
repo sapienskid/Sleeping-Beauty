@@ -89,5 +89,681 @@
 				}
 			</script>
 		</div>
+
+		<!-- ======================================================== -->
+		<!-- Sleeping Beauty RAG Controls & Vault Management Layer   -->
+		<!-- ======================================================== -->
+		<style>
+			#sb-rag-toolbar {
+				position: fixed;
+				top: 14px;
+				right: 18px;
+				z-index: 99999;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				background: rgba(24, 24, 27, 0.88);
+				backdrop-filter: blur(14px);
+				-webkit-backdrop-filter: blur(14px);
+				border: 1px solid rgba(63, 63, 70, 0.7);
+				border-radius: 9999px;
+				padding: 4px 6px;
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+				font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+				font-size: 13px;
+				user-select: none;
+			}
+			.sb-btn {
+				background: transparent;
+				border: 1px solid transparent;
+				color: #e4e4e7;
+				padding: 5px 12px;
+				border-radius: 9999px;
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font-weight: 500;
+				font-size: 12.5px;
+				transition: all 0.15s ease;
+			}
+			.sb-btn:hover {
+				background: rgba(255, 255, 255, 0.08);
+			}
+			.sb-btn-active {
+				background: rgba(16, 185, 129, 0.15);
+				border-color: rgba(16, 185, 129, 0.4);
+				color: #34d399;
+			}
+			.sb-btn-off {
+				background: rgba(63, 63, 70, 0.35);
+				color: #a1a1aa;
+			}
+			.sb-dot {
+				width: 7px;
+				height: 7px;
+				border-radius: 50%;
+				background: #71717a;
+			}
+			.sb-dot-active {
+				background: #10b981;
+				box-shadow: 0 0 8px #10b981;
+			}
+			.sb-dropdown-container {
+				position: relative;
+			}
+			.sb-dropdown-menu {
+				position: absolute;
+				top: calc(100% + 8px);
+				right: 0;
+				background: #18181b;
+				border: 1px solid #27272a;
+				border-radius: 12px;
+				min-width: 230px;
+				padding: 6px;
+				box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+				display: none;
+				flex-direction: column;
+				gap: 2px;
+				z-index: 100002;
+			}
+			.sb-dropdown-menu.show {
+				display: flex;
+			}
+			.sb-dropdown-item {
+				padding: 8px 12px;
+				border-radius: 8px;
+				color: #d4d4d8;
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				font-size: 12px;
+			}
+			.sb-dropdown-item:hover {
+				background: #27272a;
+				color: #fff;
+			}
+			.sb-dropdown-item.selected {
+				color: #34d399;
+				font-weight: 600;
+			}
+			
+			/* Slide-Over Drawer */
+			#sb-drawer-backdrop {
+				position: fixed;
+				inset: 0;
+				background: rgba(0, 0, 0, 0.65);
+				backdrop-filter: blur(4px);
+				z-index: 100000;
+				opacity: 0;
+				pointer-events: none;
+				transition: opacity 0.2s ease;
+			}
+			#sb-drawer-backdrop.open {
+				opacity: 1;
+				pointer-events: auto;
+			}
+			#sb-drawer {
+				position: fixed;
+				top: 0;
+				right: 0;
+				bottom: 0;
+				width: 440px;
+				max-width: 90vw;
+				background: #09090b;
+				border-left: 1px solid #27272a;
+				z-index: 100001;
+				transform: translateX(100%);
+				transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+				display: flex;
+				flex-direction: column;
+				box-shadow: -10px 0 35px rgba(0,0,0,0.8);
+				color: #f4f4f5;
+				font-family: ui-sans-serif, system-ui, sans-serif;
+			}
+			#sb-drawer.open {
+				transform: translateX(0);
+			}
+			.sb-drawer-header {
+				padding: 18px 24px;
+				border-bottom: 1px solid #27272a;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+			}
+			.sb-drawer-header h2 {
+				font-size: 16px;
+				font-weight: 600;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+			}
+			.sb-close-btn {
+				background: none;
+				border: none;
+				color: #a1a1aa;
+				font-size: 20px;
+				cursor: pointer;
+				line-height: 1;
+				padding: 4px;
+				border-radius: 6px;
+			}
+			.sb-close-btn:hover {
+				color: #fff;
+				background: #27272a;
+			}
+			.sb-drawer-body {
+				padding: 24px;
+				overflow-y: auto;
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				gap: 24px;
+			}
+			.sb-section-title {
+				font-size: 12px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.6px;
+				color: #a1a1aa;
+				margin-bottom: 12px;
+				display: flex;
+				align-items: center;
+				gap: 6px;
+			}
+			.sb-vault-card {
+				background: #18181b;
+				border: 1px solid #27272a;
+				border-radius: 10px;
+				padding: 14px 16px;
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+				margin-bottom: 8px;
+			}
+			.sb-vault-card-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+			}
+			.sb-vault-name {
+				font-weight: 600;
+				font-size: 13.5px;
+				color: #34d399;
+				display: flex;
+				align-items: center;
+				gap: 6px;
+			}
+			.sb-vault-actions {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.sb-vault-stats {
+				font-size: 12px;
+				color: #a1a1aa;
+			}
+			.sb-vault-files {
+				font-size: 11px;
+				color: #71717a;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			.sb-icon-btn {
+				background: none;
+				border: none;
+				cursor: pointer;
+				color: #71717a;
+				font-size: 14px;
+				padding: 4px;
+				border-radius: 4px;
+				transition: all 0.15s;
+			}
+			.sb-icon-btn:hover {
+				color: #ef4444;
+				background: rgba(239, 68, 68, 0.15);
+			}
+			.sb-input {
+				width: 100%;
+				background: #18181b;
+				border: 1px solid #27272a;
+				border-radius: 8px;
+				padding: 10px 12px;
+				color: #f4f4f5;
+				font-size: 13px;
+				box-sizing: border-box;
+				outline: none;
+			}
+			.sb-input:focus {
+				border-color: #10b981;
+			}
+			.sb-primary-btn {
+				background: #10b981;
+				color: #000;
+				font-weight: 600;
+				font-size: 13px;
+				padding: 10px 16px;
+				border: none;
+				border-radius: 8px;
+				cursor: pointer;
+				transition: background 0.15s;
+				width: 100%;
+				margin-top: 8px;
+			}
+			.sb-primary-btn:hover {
+				background: #059669;
+			}
+			.sb-primary-btn:disabled {
+				opacity: 0.5;
+				cursor: not-allowed;
+			}
+			.sb-toggle-switch {
+				position: relative;
+				display: inline-block;
+				width: 32px;
+				height: 18px;
+			}
+			.sb-toggle-switch input {
+				opacity: 0;
+				width: 0;
+				height: 0;
+			}
+			.sb-slider {
+				position: absolute;
+				cursor: pointer;
+				inset: 0;
+				background-color: #3f3f46;
+				transition: .2s;
+				border-radius: 18px;
+			}
+			.sb-slider:before {
+				position: absolute;
+				content: "";
+				height: 12px;
+				width: 12px;
+				left: 3px;
+				bottom: 3px;
+				background-color: white;
+				transition: .2s;
+				border-radius: 50%;
+			}
+			input:checked + .sb-slider {
+				background-color: #10b981;
+			}
+			input:checked + .sb-slider:before {
+				transform: translateX(14px);
+			}
+		</style>
+
+		<!-- Floating Toolbar -->
+		<div id="sb-rag-toolbar">
+			<button id="sb-rag-toggle" class="sb-btn sb-btn-active" title="Toggle RAG Retrieval Grounding">
+				<span class="sb-dot sb-dot-active" id="sb-rag-dot"></span>
+				<span id="sb-rag-label">RAG: ON</span>
+			</button>
+
+			<div class="sb-dropdown-container">
+				<button id="sb-vault-btn" class="sb-btn" title="Select Active Source Vault">
+					<span id="sb-vault-label">📁 All Sources</span>
+					<span style="font-size: 9px; opacity: 0.6;">▼</span>
+				</button>
+				<div id="sb-vault-menu" class="sb-dropdown-menu">
+					<div class="sb-dropdown-item selected" data-vault="all">
+						<span>📁 All Vaults</span>
+						<span id="sb-total-chunks-badge" style="color: #71717a; font-size: 11px;">(4,138 chunks)</span>
+					</div>
+					<div id="sb-vault-items"></div>
+				</div>
+			</div>
+
+			<button id="sb-manage-btn" class="sb-btn" title="Manage Indexed Vaults & Knowledge Sources">
+				<span>⚙️ Sources</span>
+			</button>
+		</div>
+
+		<!-- Slide-Over Drawer -->
+		<div id="sb-drawer-backdrop"></div>
+		<div id="sb-drawer">
+			<div class="sb-drawer-header">
+				<h2><span>📚</span> Knowledge Vaults & Sources</h2>
+				<button id="sb-drawer-close" class="sb-close-btn">&times;</button>
+			</div>
+			<div class="sb-drawer-body">
+				<div>
+					<div class="sb-section-title">Active Knowledge Vaults</div>
+					<div id="sb-vault-list">
+						<div style="color: #71717a; font-size: 13px;">Loading vaults...</div>
+					</div>
+				</div>
+
+				<div>
+					<div class="sb-section-title">Index New Directory / Vault</div>
+					<div style="background: #18181b; border: 1px solid #27272a; border-radius: 10px; padding: 14px;">
+						<div style="font-size: 12px; color: #a1a1aa; margin-bottom: 8px;">
+							Specify an absolute path to any local notes, markdown docs, or research directory:
+						</div>
+						<input type="text" id="sb-new-vault-path" class="sb-input" placeholder="/home/sapiens/Development/Fundaments/handbook" />
+						<button id="sb-index-btn" class="sb-primary-btn">Scan & Index Vault</button>
+						<div id="sb-index-status" style="margin-top: 8px; font-size: 12px; color: #34d399; display: none;"></div>
+					</div>
+				</div>
+
+				<div>
+					<div class="sb-section-title">Retrieval Settings</div>
+					<div style="background: #18181b; border: 1px solid #27272a; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 12px;">
+						<div style="display: flex; justify-content: space-between; align-items: center;">
+							<span style="font-size: 13px; color: #d4d4d8;">Top Chunks (k)</span>
+							<div style="display: flex; align-items: center; gap: 8px;">
+								<input type="range" id="sb-topk-slider" min="1" max="10" value="4" style="accent-color: #10b981; width: 100px;" />
+								<span id="sb-topk-value" style="font-size: 13px; font-weight: 600; color: #10b981; width: 20px;">4</span>
+							</div>
+						</div>
+						<div style="display: flex; justify-content: space-between; align-items: center;">
+							<span style="font-size: 13px; color: #d4d4d8;">Append Grounding Sources</span>
+							<label class="sb-toggle-switch">
+								<input type="checkbox" id="sb-citations-toggle" checked />
+								<span class="sb-slider"></span>
+							</label>
+						</div>
+					</div>
+				</div>
+
+				<div>
+					<div class="sb-section-title">Test Search Engine</div>
+					<div style="background: #18181b; border: 1px solid #27272a; border-radius: 10px; padding: 14px;">
+						<input type="text" id="sb-test-search-input" class="sb-input" placeholder="Type query to test LanceDB hybrid retrieval..." />
+						<div id="sb-test-search-results" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 12px;"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Controller & Fetch Interceptor -->
+		<script>
+			(function() {
+				// Global RAG State
+				window.__RAG_CONFIG__ = {
+					enabled: true,
+					selected_vault: 'all',
+					disabled_vaults: new Set(),
+					top_k: 4,
+					include_sources: true,
+					vaults_data: []
+				};
+
+				// --- 1. Intercept Fetch for /v1/chat/completions ---
+				const originalFetch = window.fetch;
+				window.fetch = async function(...args) {
+					const [resource, config] = args;
+					if (typeof resource === 'string' && resource.includes('/v1/chat/completions') && config && config.body) {
+						try {
+							const body = JSON.parse(config.body);
+							body.rag_enabled = window.__RAG_CONFIG__.enabled;
+							body.selected_vault = window.__RAG_CONFIG__.selected_vault;
+							body.disabled_vaults = Array.from(window.__RAG_CONFIG__.disabled_vaults);
+							body.top_k = window.__RAG_CONFIG__.top_k;
+							body.include_sources = window.__RAG_CONFIG__.include_sources;
+							config.body = JSON.stringify(body);
+						} catch (e) {
+							console.warn('[Sleeping Beauty RAG] Error injecting parameters into fetch body:', e);
+						}
+					}
+					return originalFetch.apply(this, args);
+				};
+
+				// --- 2. DOM Elements ---
+				const toggleBtn = document.getElementById('sb-rag-toggle');
+				const toggleDot = document.getElementById('sb-rag-dot');
+				const toggleLabel = document.getElementById('sb-rag-label');
+				const vaultBtn = document.getElementById('sb-vault-btn');
+				const vaultLabel = document.getElementById('sb-vault-label');
+				const vaultMenu = document.getElementById('sb-vault-menu');
+				const vaultItems = document.getElementById('sb-vault-items');
+				const manageBtn = document.getElementById('sb-manage-btn');
+				const drawer = document.getElementById('sb-drawer');
+				const drawerBackdrop = document.getElementById('sb-drawer-backdrop');
+				const drawerClose = document.getElementById('sb-drawer-close');
+				const vaultList = document.getElementById('sb-vault-list');
+				const indexBtn = document.getElementById('sb-index-btn');
+				const newVaultPath = document.getElementById('sb-new-vault-path');
+				const indexStatus = document.getElementById('sb-index-status');
+				const topkSlider = document.getElementById('sb-topk-slider');
+				const topkVal = document.getElementById('sb-topk-value');
+				const citationsToggle = document.getElementById('sb-citations-toggle');
+				const testSearchInput = document.getElementById('sb-test-search-input');
+				const testSearchResults = document.getElementById('sb-test-search-results');
+
+				// --- 3. RAG Toggle Handler ---
+				toggleBtn.addEventListener('click', () => {
+					window.__RAG_CONFIG__.enabled = !window.__RAG_CONFIG__.enabled;
+					updateRAGButton();
+				});
+
+				function updateRAGButton() {
+					if (window.__RAG_CONFIG__.enabled) {
+						toggleBtn.className = 'sb-btn sb-btn-active';
+						toggleDot.className = 'sb-dot sb-dot-active';
+						toggleLabel.textContent = 'RAG: ON';
+					} else {
+						toggleBtn.className = 'sb-btn sb-btn-off';
+						toggleDot.className = 'sb-dot';
+						toggleLabel.textContent = 'RAG: OFF';
+					}
+				}
+
+				// --- 4. Vault Selector Dropdown ---
+				vaultBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					vaultMenu.classList.toggle('show');
+				});
+
+				document.addEventListener('click', () => {
+					vaultMenu.classList.remove('show');
+				});
+
+				// --- 5. Drawer Open/Close ---
+				function openDrawer() {
+					drawer.classList.add('open');
+					drawerBackdrop.classList.add('open');
+					loadVaultStats();
+				}
+
+				function closeDrawer() {
+					drawer.classList.remove('open');
+					drawerBackdrop.classList.remove('open');
+				}
+
+				manageBtn.addEventListener('click', openDrawer);
+				drawerClose.addEventListener('click', closeDrawer);
+				drawerBackdrop.addEventListener('click', closeDrawer);
+
+				// --- 6. Fetch Vault Stats & Update UI ---
+				async function loadVaultStats() {
+					try {
+						const res = await originalFetch('/api/stats');
+						const data = await res.json();
+						window.__RAG_CONFIG__.vaults_data = data.vaults || [];
+						renderVaults(data);
+					} catch (e) {
+						console.error('Failed to load stats:', e);
+					}
+				}
+
+				function renderVaults(data) {
+					const totalBadge = document.getElementById('sb-total-chunks-badge');
+					if (totalBadge) totalBadge.textContent = `(${data.total_chunks.toLocaleString()} chunks)`;
+
+					// Render dropdown items
+					vaultItems.innerHTML = '';
+					data.vaults.forEach(v => {
+						const item = document.createElement('div');
+						item.className = 'sb-dropdown-item' + (window.__RAG_CONFIG__.selected_vault === v.vault_name ? ' selected' : '');
+						item.innerHTML = `<span>📁 ${v.vault_name}</span><span style="color: #71717a; font-size: 11px;">(${v.total_chunks} chunks)</span>`;
+						item.addEventListener('click', () => {
+							window.__RAG_CONFIG__.selected_vault = v.vault_name;
+							vaultLabel.textContent = `📁 ${v.vault_name}`;
+							document.querySelectorAll('.sb-dropdown-item').forEach(el => el.classList.remove('selected'));
+							item.classList.add('selected');
+							vaultMenu.classList.remove('show');
+						});
+						vaultItems.appendChild(item);
+					});
+
+					// "All Vaults" item click
+					const allItem = vaultMenu.querySelector('[data-vault="all"]');
+					if (allItem) {
+						allItem.onclick = () => {
+							window.__RAG_CONFIG__.selected_vault = 'all';
+							vaultLabel.textContent = '📁 All Sources';
+							document.querySelectorAll('.sb-dropdown-item').forEach(el => el.classList.remove('selected'));
+							allItem.classList.add('selected');
+							vaultMenu.classList.remove('show');
+						};
+					}
+
+					// Render Drawer Vaults List
+					if (!data.vaults || data.vaults.length === 0) {
+						vaultList.innerHTML = '<div style="color: #71717a; font-size: 13px;">No vaults indexed yet. Add one below.</div>';
+						return;
+					}
+
+					vaultList.innerHTML = '';
+					data.vaults.forEach(v => {
+						const card = document.createElement('div');
+						card.className = 'sb-vault-card';
+
+						const isEnabled = !window.__RAG_CONFIG__.disabled_vaults.has(v.vault_name);
+						const sample = (v.sample_files || []).slice(0, 3).join(', ');
+
+						card.innerHTML = `
+							<div class="sb-vault-card-header">
+								<div class="sb-vault-name">
+									<span>📁</span> ${v.vault_name}
+								</div>
+								<div class="sb-vault-actions">
+									<label class="sb-toggle-switch" title="Enable or Disable this vault from RAG retrieval">
+										<input type="checkbox" class="sb-vault-toggle" data-vault="${v.vault_name}" ${isEnabled ? 'checked' : ''} />
+										<span class="sb-slider"></span>
+									</label>
+									<button class="sb-icon-btn sb-delete-vault-btn" data-vault="${v.vault_name}" title="Delete this vault">&times;</button>
+								</div>
+							</div>
+							<div class="sb-vault-stats">
+								${v.total_documents} documents &bull; ${v.total_chunks.toLocaleString()} chunks
+							</div>
+							<div class="sb-vault-files" title="${sample}">
+								${sample || 'Indexed documents'}
+							</div>
+						`;
+
+						// Vault enable/disable toggle
+						const toggleInput = card.querySelector('.sb-vault-toggle');
+						toggleInput.addEventListener('change', (e) => {
+							if (e.target.checked) {
+								window.__RAG_CONFIG__.disabled_vaults.delete(v.vault_name);
+							} else {
+								window.__RAG_CONFIG__.disabled_vaults.add(v.vault_name);
+							}
+						});
+
+						// Delete vault button
+						const delBtn = card.querySelector('.sb-delete-vault-btn');
+						delBtn.addEventListener('click', async () => {
+							if (confirm(`Remove vault "${v.vault_name}" from index?`)) {
+								try {
+									const res = await originalFetch(`/api/vaults/${encodeURIComponent(v.vault_name)}`, { method: 'DELETE' });
+									if (res.ok) {
+										loadVaultStats();
+									}
+								} catch (err) {
+									alert('Failed to delete vault: ' + err.message);
+								}
+							}
+						});
+
+						vaultList.appendChild(card);
+					});
+				}
+
+				// --- 7. Index New Vault Handler ---
+				indexBtn.addEventListener('click', async () => {
+					const path = newVaultPath.value.trim();
+					if (!path) return;
+
+					indexBtn.disabled = true;
+					indexBtn.textContent = 'Scanning & Indexing...';
+					indexStatus.style.display = 'block';
+					indexStatus.style.color = '#34d399';
+					indexStatus.textContent = 'Processing files and embedding chunks...';
+
+					try {
+						const res = await originalFetch('/api/index', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ vault_path: path })
+						});
+						const resData = await res.json();
+						if (res.ok) {
+							indexStatus.textContent = `Indexed ${resData.chunks_indexed} chunks from ${resData.files_scanned} files in ${resData.vault_name}!`;
+							newVaultPath.value = '';
+							loadVaultStats();
+						} else {
+							indexStatus.style.color = '#ef4444';
+							indexStatus.textContent = resData.detail || 'Indexing failed';
+						}
+					} catch (e) {
+						indexStatus.style.color = '#ef4444';
+						indexStatus.textContent = 'Error: ' + e.message;
+					} finally {
+						indexBtn.disabled = false;
+						indexBtn.textContent = 'Scan & Index Vault';
+					}
+				});
+
+				// --- 8. Sliders & Settings ---
+				topkSlider.addEventListener('input', (e) => {
+					const val = parseInt(e.target.value);
+					topkVal.textContent = val;
+					window.__RAG_CONFIG__.top_k = val;
+				});
+
+				citationsToggle.addEventListener('change', (e) => {
+					window.__RAG_CONFIG__.include_sources = e.target.checked;
+				});
+
+				// --- 9. Test Search ---
+				let searchTimeout = null;
+				testSearchInput.addEventListener('input', (e) => {
+					clearTimeout(searchTimeout);
+					const q = e.target.value.trim();
+					if (!q) {
+						testSearchResults.innerHTML = '';
+						return;
+					}
+					searchTimeout = setTimeout(async () => {
+						try {
+							const res = await originalFetch('/api/search', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ query: q, top_k: 3 })
+							});
+							const data = await res.json();
+							testSearchResults.innerHTML = '';
+							(data.results || []).forEach(r => {
+								const div = document.createElement('div');
+								div.style.cssText = 'background: #27272a; padding: 8px; border-radius: 6px;';
+								div.innerHTML = `<span style="color: #34d399; font-weight: 500;">${r.relative_path}</span><div style="color: #a1a1aa; font-size: 11px; margin-top: 3px;">${(r.text || '').slice(0, 100)}...</div>`;
+								testSearchResults.appendChild(div);
+							});
+						} catch (err) {}
+					}, 250);
+				});
+
+				// Initial stats load
+				loadVaultStats();
+			})();
+		</script>
 	</body>
 </html>

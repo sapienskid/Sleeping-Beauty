@@ -1,12 +1,13 @@
 """FastAPI Application providing Web Dashboard, REST API, and OpenAI-compatible proxy."""
 
 import os
+import re
 import json
 import asyncio
 from pathlib import Path
 from typing import List, Optional
 import httpx
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Response
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Response, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -202,6 +203,24 @@ async def proxy_slots():
         return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
 
 
+@app.api_route("/v1/streams/lookup", methods=["GET", "POST", "OPTIONS"])
+async def proxy_streams_lookup(request: Request):
+    url = f"{settings.LLAMA_SERVER_URL.rstrip('/v1')}/v1/streams/lookup"
+    body = await request.body()
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        r = await client.request(request.method, url, content=body, headers={"Content-Type": "application/json"})
+        return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
+
+
+@app.api_route("/tools", methods=["GET", "POST", "OPTIONS"])
+async def proxy_tools(request: Request):
+    url = f"{settings.LLAMA_SERVER_URL.rstrip('/v1')}/tools"
+    body = await request.body()
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        r = await client.request(request.method, url, content=body, headers={"Content-Type": "application/json"})
+        return Response(content=r.content, status_code=r.status_code, media_type=r.headers.get("content-type", "application/json"))
+
+
 # --- OpenAI-Compatible Chat Completions with Streaming RAG ---
 @app.post("/v1/chat/completions")
 async def chat_completions(payload: dict):
@@ -209,6 +228,12 @@ async def chat_completions(payload: dict):
     messages = payload.get("messages", [])
     if not messages:
         raise HTTPException(status_code=400, detail="Messages array required")
+
+    # Options from client (injected UI control or body parameter)
+    rag_enabled = payload.get("rag_enabled", True)
+    selected_vault = payload.get("selected_vault", None)
+    disabled_vaults = payload.get("disabled_vaults", [])
+    top_k = payload.get("top_k", settings.RAG_TOP_K)
 
     last_user_msg = ""
     for m in reversed(messages):
@@ -221,18 +246,37 @@ async def chat_completions(payload: dict):
                 last_user_msg = " ".join(parts)
             break
 
-    engine = RAGEngine()
+    # Parse inline flags from prompt (e.g., /norag, /direct, /vault:handbook)
+    cleaned_user_msg = last_user_msg
+    if "/norag" in last_user_msg.lower() or "/direct" in last_user_msg.lower():
+        rag_enabled = False
+        cleaned_user_msg = re.sub(r"/(norag|direct)", "", cleaned_user_msg, flags=re.IGNORECASE).strip()
+    elif "/rag" in last_user_msg.lower():
+        rag_enabled = True
+        cleaned_user_msg = re.sub(r"/rag", "", cleaned_user_msg, flags=re.IGNORECASE).strip()
+
+    vault_match = re.search(r"/vault:(\w+)", cleaned_user_msg, flags=re.IGNORECASE)
+    if vault_match:
+        selected_vault = vault_match.group(1)
+        cleaned_user_msg = re.sub(r"/vault:\w+", "", cleaned_user_msg, flags=re.IGNORECASE).strip()
+
     chunks = []
-    if last_user_msg.strip():
+    if rag_enabled and cleaned_user_msg.strip():
+        engine = RAGEngine()
         try:
-            chunks = engine.retrieve(last_user_msg, top_k=settings.RAG_TOP_K)
+            chunks = engine.retrieve(
+                cleaned_user_msg,
+                top_k=top_k,
+                vault_name=selected_vault if selected_vault != "all" else None,
+                disabled_vaults=disabled_vaults,
+            )
         except Exception as e:
             print(f"Retrieval notice: {e}")
 
     from src.rag.prompt import format_rag_prompt, SYSTEM_PROMPT
 
     if chunks:
-        augmented_user_content = format_rag_prompt(last_user_msg, chunks)
+        augmented_user_content = format_rag_prompt(cleaned_user_msg, chunks)
         new_messages = []
         has_system = False
         for m in messages[:-1]:
@@ -245,19 +289,29 @@ async def chat_completions(payload: dict):
             new_messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
         new_messages.append({"role": "user", "content": augmented_user_content})
         payload["messages"] = new_messages
+    else:
+        if cleaned_user_msg != last_user_msg:
+            new_messages = list(messages[:-1])
+            new_messages.append({"role": "user", "content": cleaned_user_msg})
+            payload["messages"] = new_messages
 
     endpoint = f"{settings.LLAMA_SERVER_URL.rstrip('/')}/chat/completions"
     headers = {"Authorization": f"Bearer {settings.LLAMA_API_KEY}"}
 
+    clean_payload = {
+        k: v for k, v in payload.items()
+        if k not in ("rag_enabled", "selected_vault", "disabled_vaults", "top_k", "include_sources")
+    }
+
     if payload.get("stream", False):
         async def stream_generator():
             async with httpx.AsyncClient(timeout=120.0) as client:
-                async with client.stream("POST", endpoint, json=payload, headers=headers) as response:
+                async with client.stream("POST", endpoint, json=clean_payload, headers=headers) as response:
                     async for line in response.aiter_lines():
                         if not line:
                             continue
                         if line.startswith("data: [DONE]"):
-                            if chunks:
+                            if chunks and payload.get("include_sources", True):
                                 citations = "\n\n---\n**📚 Grounding Sources:**\n"
                                 for idx, c in enumerate(chunks, 1):
                                     rel = c.get("relative_path", "")
@@ -275,9 +329,9 @@ async def chat_completions(payload: dict):
         return StreamingResponse(stream_generator(), media_type="text/event-stream")
 
     async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(endpoint, json=payload, headers=headers)
+        resp = await client.post(endpoint, json=clean_payload, headers=headers)
         data = resp.json()
-        if chunks and "choices" in data and len(data["choices"]) > 0:
+        if chunks and payload.get("include_sources", True) and "choices" in data and len(data["choices"]) > 0:
             citations = "\n\n---\n**📚 Grounding Sources:**\n"
             for idx, c in enumerate(chunks, 1):
                 rel = c.get("relative_path", "")

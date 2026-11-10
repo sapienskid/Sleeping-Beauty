@@ -81,6 +81,7 @@ class KnowledgeStore:
         query_vector: List[float],
         top_k: int = 4,
         vault_name: Optional[str] = None,
+        disabled_vaults: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """Perform hybrid BM25 + Vector ANN search merged with Reciprocal Rank Fusion (RRF)."""
         if self.table is None:
@@ -97,18 +98,25 @@ class KnowledgeStore:
             .limit(top_k)
         )
 
-        if vault_name:
-            search_query = search_query.where(f"vault_name = '{vault_name}'")
+        filter_clause = None
+        if vault_name and vault_name != "all":
+            filter_clause = f"vault_name = '{vault_name}'"
+        elif disabled_vaults:
+            escaped = ", ".join(f"'{v}'" for v in disabled_vaults if v)
+            if escaped:
+                filter_clause = f"vault_name NOT IN ({escaped})"
+
+        if filter_clause:
+            search_query = search_query.where(filter_clause)
 
         try:
             results = search_query.to_list()
         except Exception:
             # Fallback to vector search if FTS index is temporarily updating or unavailable
-            results = (
-                self.table.search(query_vector, vector_column_name="vector")
-                .limit(top_k)
-                .to_list()
-            )
+            vec_search = self.table.search(query_vector, vector_column_name="vector").limit(top_k)
+            if filter_clause:
+                vec_search = vec_search.where(filter_clause)
+            results = vec_search.to_list()
 
         formatted = []
         for r in results:
