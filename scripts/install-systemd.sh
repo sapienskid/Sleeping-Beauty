@@ -15,7 +15,7 @@ ACTION="install"
 usage() {
   cat <<'EOF'
 Install or uninstall systemd daemon units for Sleeping Beauty:
-  - sleeping-beauty-llm.service    (llama.cpp Router on :10000: Qwen3.5-2B + WSP models)
+  - sleeping-beauty-llm.service    (Qwen3.5-2B via llama-server on :10000)
   - sleeping-beauty-embed.service  (EmbeddingGemma-2 on :10001)
   - sleeping-beauty.service        (Web Hub + API on :8000; starts/stops the others)
 
@@ -113,8 +113,6 @@ fi
 LLAMA_SERVER_BIN="${LLAMA_SERVER_BIN:-/home/sapiens/llama.cpp/build-cuda/bin/llama-server}"
 MODELS_DIR="${MODELS_DIR:-/home/sapiens/models}"
 LLM_MODEL="${LLM_GGUF_PATH:-${MODELS_DIR}/Qwen3.5-2B-Q8_0.gguf}"
-WSP_2B_MODEL="${MODELS_DIR}/Qwen3.5-2B-UD-Q4_K_XL-wsp.gguf"
-WSP_08B_MODEL="${MODELS_DIR}/Qwen3.5-0.8B-weight-space-programming.Q8_0.gguf"
 EMBED_MODEL="${EMBEDDING_GGUF_PATH:-${MODELS_DIR}/embeddinggemma-2-Q8_0.gguf}"
 LLAMA_HOST="${LLAMA_HOST:-0.0.0.0}"
 LLM_PORT="${LLAMA_PORT:-10000}"
@@ -134,23 +132,23 @@ VENV_PY="${PROJECT_DIR}/.venv/bin/python"
 [[ -x "$LLAMA_SERVER_BIN" ]] || die "llama-server binary not found at ${LLAMA_SERVER_BIN}"
 [[ -f "$LLM_MODEL" ]] || die "LLM GGUF model not found at ${LLM_MODEL}"
 [[ -f "$EMBED_MODEL" ]] || die "Embedding GGUF model not found at ${EMBED_MODEL}"
-command -v curl >/dev/null 2>&1 || die "curl not found (needed for ExecStartPost readiness check)"
 
 LLAMA_BIN_DIR="$(dirname -- "$LLAMA_SERVER_BIN")"
-mkdir -p "$UNIT_DIR" "$(dirname -- "$PRESET_PATH")"
+mkdir -p "$UNIT_DIR"
+rm -f -- "$PRESET_PATH"
 
 render_template() {
   local src="$1"
   local dst="$2"
   "$VENV_PY" - "$src" "$dst" \
-    "$PROJECT_DIR" "$MODELS_DIR" "$LLAMA_SERVER_BIN" "$LLAMA_BIN_DIR" "$PRESET_PATH" \
+    "$PROJECT_DIR" "$MODELS_DIR" "$LLAMA_SERVER_BIN" "$LLAMA_BIN_DIR" \
     "$LLM_MODEL" "$EMBED_MODEL" "$LLAMA_HOST" "$LLM_PORT" "$EMBED_PORT" \
     "$LLAMA_NGL" "$LLAMA_CTX" "$SB_HOST" "$SB_PORT" "$WANTED_BY" \
     "$SYSTEM_USER_LINES" "$NETWORK_UNIT_LINES" <<'PY'
 import sys
 from pathlib import Path
 
-(_, src, dst, proj, models_dir, llama_bin, llama_dir, preset_path,
+(_, src, dst, proj, models_dir, llama_bin, llama_dir,
  llm_m, emb_m, l_host, l_port, e_port, ngl, ctx, sb_host, sb_port,
  wanted, user_lines, net_lines) = sys.argv
 text = Path(src).read_text(encoding="utf-8")
@@ -159,7 +157,6 @@ repl = {
     "@MODELS_DIR@": models_dir,
     "@LLAMA_SERVER_BIN@": llama_bin,
     "@LLAMA_BIN_DIR@": llama_dir,
-    "@PRESET_PATH@": preset_path,
     "@LLM_MODEL@": llm_m,
     "@EMBED_MODEL@": emb_m,
     "@LLAMA_HOST@": l_host,
@@ -180,55 +177,6 @@ PY
   chmod 0644 "$dst"
 }
 
-log "Writing model preset to ${PRESET_PATH}"
-# Start from base preset template and keep only models that exist on disk
-TEMP_PRESET="$(mktemp)"
-trap 'rm -f -- "$TEMP_PRESET"' EXIT
-cat > "$TEMP_PRESET" <<EOF
-version = 1
-
-[*]
-n-gpu-layers = ${LLAMA_NGL}
-flash-attn = on
-ctx-size = ${LLAMA_CTX}
-jinja = true
-slots = true
-temp = 0.7
-top-p = 0.9
-presence-penalty = 1.5
-
-[Qwen3.5-2B]
-model = ${LLM_MODEL}
-reasoning = off
-load-on-startup = true
-EOF
-
-if [[ -f "$WSP_2B_MODEL" ]]; then
-  cat >> "$TEMP_PRESET" <<EOF
-
-[Qwen3.5-2B-WSP]
-model = ${WSP_2B_MODEL}
-reasoning = off
-load-on-startup = false
-EOF
-fi
-
-if [[ -f "$WSP_08B_MODEL" ]]; then
-  cat >> "$TEMP_PRESET" <<EOF
-
-[Qwen3.5-0.8B-WSP]
-model = ${WSP_08B_MODEL}
-reasoning = on
-reasoning-budget = 512
-temp = 0.6
-top-p = 0.95
-presence-penalty = 1.5
-load-on-startup = false
-EOF
-fi
-
-install -m 0644 "$TEMP_PRESET" "$PRESET_PATH"
-
 for u in "${UNITS[@]}"; do
   src="${PROJECT_DIR}/systemd/${u}.in"
   [[ -f "$src" ]] || die "Template not found: ${src}"
@@ -240,7 +188,7 @@ done
 "${SYSCTL[@]}" enable sleeping-beauty.service
 
 if [[ "$AUTO_START" == "true" ]]; then
-  log "Starting sleeping-beauty.service (brings up LLM Router :${LLM_PORT}, Embed :${EMBED_PORT}, Web :${SB_PORT})..."
+  log "Starting sleeping-beauty.service (brings up LLM :${LLM_PORT}, Embed :${EMBED_PORT}, Web :${SB_PORT})..."
   "${SYSCTL[@]}" restart sleeping-beauty.service
   log "All services started:"
   "${SYSCTL[@]}" --no-pager status "${UNITS[@]}" || true
@@ -249,10 +197,9 @@ fi
 cat <<EOF
 
 Sleeping Beauty systemd daemon installed (${MODE} mode).
-Preset file: ${PRESET_PATH}
 Manage with:
-  ${PREFIX_CMD} start sleeping-beauty     # Start all (LLM Router + Embedding + Web UI)
-  ${PREFIX_CMD} stop sleeping-beauty      # Stop all
+  ${PREFIX_CMD} start sleeping-beauty     # Start all (LLM + Embedding + Web UI)
+  ${PREFIX_CMD} stop sleeping-beauty      # Stop all (frees GPU VRAM)
   ${PREFIX_CMD} restart sleeping-beauty   # Restart all
   ${PREFIX_CMD} status sleeping-beauty sleeping-beauty-llm sleeping-beauty-embed
   ${JOURNAL_CMD} -u sleeping-beauty -u sleeping-beauty-llm -u sleeping-beauty-embed -f

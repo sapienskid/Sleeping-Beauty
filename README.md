@@ -20,10 +20,9 @@ A zero-Docker, ultra-fast local knowledge search and retrieval-augmented generat
 │  └── Grounded Micro-RAG Engine (Strict XML delimiters, zero-halluc)    │
 ├────────────────────────────────────────────────────────────────────────┤
 │                          LOCAL LLM RUNTIME                             │
-│  llama-server Router (Host GPU :10000, --models-max 1)                 │
-│  • Qwen3.5-2B (Default)                                                │
-│  • Qwen3.5-2B-WSP & Qwen3.5-0.8B-WSP (Weight-Space Programming)        │
-│  • Switch models directly in Web UI (:8000) or built-in UI (:10000)    │
+│  llama-server (Host GPU :10000)                                        │
+│  • Qwen3.5-2B Q8_0 (100% GPU offload, fast direct mode by default)     │
+│  • EmbeddingGemma-2 Q8_0 (:10001, ~260MB VRAM)                         │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -58,22 +57,12 @@ cp .env.example .env
 ./sb --help
 ```
 
-### 3. Download 1–2B Models (Qwen3.5-2B + Weight-Space Programming)
+### 3. Download Models (`Qwen3.5-2B` + `EmbeddingGemma-2`)
 
-Download **Qwen3.5-2B** (default) and optional **Weight-Space Programming (WSP)** variants into `/home/sapiens/models`:
+Download **Qwen3.5-2B** (`Q8_0`) and **EmbeddingGemma-2** (`Q8_0`) into `/home/sapiens/models`:
 
 ```bash
-# Official Qwen3.5-2B GGUF (default)
 hf download unsloth/Qwen3.5-2B-GGUF Qwen3.5-2B-Q8_0.gguf \
-  --local-dir /home/sapiens/models
-
-# Qwen3.5-2B improved via Weight-Space Programming (loop-ablated direct answers)
-hf download NikitaLazarev/Qwen3.5-2B-WSP-GGUF Qwen3.5-2B-UD-Q4_K_XL-wsp.gguf \
-  --local-dir /home/sapiens/models
-
-# RikiyaT / MIT Sparks of Weight-Space Programming Qwen3.5-0.8B (MATH-500 & IFEval boost)
-hf download prithivMLmods/Qwen3.5-0.8B-weight-space-programming-GGUF \
-  Qwen3.5-0.8B-weight-space-programming.Q8_0.gguf \
   --local-dir /home/sapiens/models
 ```
 
