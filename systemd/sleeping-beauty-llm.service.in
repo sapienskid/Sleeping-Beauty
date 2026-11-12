@@ -9,7 +9,7 @@ Type=simple
 @SYSTEM_USER_LINES@WorkingDirectory=@PROJECT_DIR@
 Environment=PATH=/opt/cuda/bin:/usr/local/bin:/usr/bin:/bin
 Environment=LD_LIBRARY_PATH=/opt/cuda/lib64:@LLAMA_BIN_DIR@
-ExecStart=@LLAMA_SERVER_BIN@ --host @LLAMA_HOST@ --port @LLM_PORT@ -m @LLM_MODEL@ --alias Qwen3.5-2B -ngl @LLAMA_NGL@ -fa on -c @LLAMA_CTX@ --slots --jinja --reasoning off --temp 0.7 --top-p 0.9 --presence-penalty 1.5
+ExecStart=@LLAMA_SERVER_BIN@ --host @LLAMA_HOST@ --port @LLM_PORT@ -m @LLM_MODEL@ --alias Qwen3.5-2B -ngl @LLAMA_NGL@ -fa on -c @LLAMA_CTX@ -np @LLAMA_PARALLEL@ -b @LLAMA_BATCH_SIZE@ -ub @LLAMA_UBATCH_SIZE@ -ctk @LLAMA_KV_CACHE_TYPE_K@ -ctv @LLAMA_KV_CACHE_TYPE_V@ --slots --jinja --reasoning off --temp 0.7 --top-p 0.9 --presence-penalty 1.5
 ExecStartPost=@PROJECT_DIR@/.venv/bin/python @PROJECT_DIR@/scripts/wait-ready.py --url http://127.0.0.1:@LLM_PORT@/health --mode http --timeout 45
 Restart=on-failure
 RestartSec=3

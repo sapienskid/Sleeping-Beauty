@@ -182,7 +182,7 @@ def chat(
 
 @app.command("start-llm")
 def start_llm():
-    """Start local llama-server for generation LLM (Qwen 2.5 1.5B on port 10000)."""
+    """Start local llama-server for generation LLM on port 10000."""
     import subprocess
     import httpx
 
@@ -207,7 +207,12 @@ def start_llm():
         "-m", str(model_path),
         "-ngl", "99",
         "-fa", "on",
-        "-c", "4096",
+        "-c", str(settings.LLAMA_CONTEXT_SIZE),
+        "-np", str(settings.LLAMA_PARALLEL),
+        "-b", str(settings.LLAMA_BATCH_SIZE),
+        "-ub", str(settings.LLAMA_UBATCH_SIZE),
+        "-ctk", settings.LLAMA_KV_CACHE_TYPE_K,
+        "-ctv", settings.LLAMA_KV_CACHE_TYPE_V,
         "--jinja",
     ]
     console.print("[cyan]Launching LLM llama-server on port 10000...[/cyan]")

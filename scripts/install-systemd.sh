@@ -117,7 +117,12 @@ EMBED_MODEL="${EMBEDDING_GGUF_PATH:-${MODELS_DIR}/embeddinggemma-2-Q8_0.gguf}"
 LLAMA_HOST="${LLAMA_HOST:-0.0.0.0}"
 LLM_PORT="${LLAMA_PORT:-10000}"
 LLAMA_NGL="${LLAMA_N_GPU_LAYERS:-99}"
-LLAMA_CTX="${LLAMA_CONTEXT_SIZE:-4096}"
+LLAMA_CTX="${LLAMA_CONTEXT_SIZE:-102400}"
+LLAMA_PARALLEL="${LLAMA_PARALLEL:-1}"
+LLAMA_BATCH_SIZE="${LLAMA_BATCH_SIZE:-512}"
+LLAMA_UBATCH_SIZE="${LLAMA_UBATCH_SIZE:-64}"
+LLAMA_KV_CACHE_TYPE_K="${LLAMA_KV_CACHE_TYPE_K:-q8_0}"
+LLAMA_KV_CACHE_TYPE_V="${LLAMA_KV_CACHE_TYPE_V:-q8_0}"
 SB_HOST="${HOST:-0.0.0.0}"
 SB_PORT="${PORT:-8000}"
 
@@ -144,13 +149,15 @@ render_template() {
     "$PROJECT_DIR" "$MODELS_DIR" "$LLAMA_SERVER_BIN" "$LLAMA_BIN_DIR" \
     "$LLM_MODEL" "$EMBED_MODEL" "$LLAMA_HOST" "$LLM_PORT" "$EMBED_PORT" \
     "$LLAMA_NGL" "$LLAMA_CTX" "$SB_HOST" "$SB_PORT" "$WANTED_BY" \
-    "$SYSTEM_USER_LINES" "$NETWORK_UNIT_LINES" <<'PY'
+    "$SYSTEM_USER_LINES" "$NETWORK_UNIT_LINES" \
+    "$LLAMA_PARALLEL" "$LLAMA_BATCH_SIZE" "$LLAMA_UBATCH_SIZE" \
+    "$LLAMA_KV_CACHE_TYPE_K" "$LLAMA_KV_CACHE_TYPE_V" <<'PY'
 import sys
 from pathlib import Path
 
 (_, src, dst, proj, models_dir, llama_bin, llama_dir,
  llm_m, emb_m, l_host, l_port, e_port, ngl, ctx, sb_host, sb_port,
- wanted, user_lines, net_lines) = sys.argv
+ wanted, user_lines, net_lines, parallel, batch, ubatch, ctk, ctv) = sys.argv
 text = Path(src).read_text(encoding="utf-8")
 repl = {
     "@PROJECT_DIR@": proj,
@@ -164,6 +171,11 @@ repl = {
     "@EMBED_PORT@": e_port,
     "@LLAMA_NGL@": ngl,
     "@LLAMA_CTX@": ctx,
+    "@LLAMA_PARALLEL@": parallel,
+    "@LLAMA_BATCH_SIZE@": batch,
+    "@LLAMA_UBATCH_SIZE@": ubatch,
+    "@LLAMA_KV_CACHE_TYPE_K@": ctk,
+    "@LLAMA_KV_CACHE_TYPE_V@": ctv,
     "@SB_HOST@": sb_host,
     "@SB_PORT@": sb_port,
     "@WANTED_BY@": wanted,
